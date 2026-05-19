@@ -41,16 +41,26 @@ export const QrReceptionPortal: React.FC = () => {
     setIsLoading(true);
     setMessage(null);
     try {
-      const data = await api.getEmployee(employeeDocument.trim());
+      let data: api.EmployeeProfile;
+      try {
+        data = await api.getEmployee(employeeDocument.trim());
+      } catch (err) {
+        data = { fullName: '', email: '', cargo: '', document: employeeDocument.trim() };
+      }
       setProfile(data);
-      // Fetch pending delivery
-      const pending = await api.getPendingDelivery(employeeDocument.trim());
-      setPendingDelivery(pending);
+
+      // ALWAYS try to fetch pending delivery by document
+      try {
+        const pending = await api.getPendingDelivery(employeeDocument.trim());
+        setPendingDelivery(pending);
+      } catch (err) {
+        console.error("No pending delivery found:", err);
+        setPendingDelivery(null);
+      }
+
       setStep(2);
     } catch (error) {
-      // If not found, stay on step 2 but with empty profile
-      setProfile({ fullName: '', email: '', cargo: '', document: employeeDocument.trim() });
-      setStep(2);
+      setMessage({ type: 'error', text: 'Error al identificar colaborador.' });
     } finally {
       setIsLoading(false);
     }
@@ -355,8 +365,8 @@ export const QrReceptionPortal: React.FC = () => {
                                             <Package size={14} />
                                          </div>
                                          <div>
-                                            <p className="text-xs font-black text-slate-900 dark:text-white">Ítem #{item.productId}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase">Cantidad Verificada</p>
+                                            <p className="text-xs font-black text-slate-900 dark:text-white">{item.name || `Ítem #${item.productId}`}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase">Talla: {item.talla || 'N/A'} • Cantidad Verificada</p>
                                          </div>
                                       </div>
                                       <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-black">x{item.quantity}</span>

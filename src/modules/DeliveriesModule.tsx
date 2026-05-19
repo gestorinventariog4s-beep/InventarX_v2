@@ -19,7 +19,7 @@ import {
   Download,
   X
 } from 'lucide-react';
-import { Product } from '../types';
+import { Product, AuthResponse } from '../types';
 import * as api from '../services/api';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ActaReportPDF } from '../components/ActaReportPDF';
@@ -41,13 +41,17 @@ interface DeliveriesModuleProps {
     evidencePhotos?: string[];
   }) => Promise<any>;
   isLoading: boolean;
+  session?: AuthResponse | null;
+  onLogout?: () => void;
 }
 
 export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   products,
   onNotify,
   onSubmitDelivery,
-  isLoading
+  isLoading,
+  session,
+  onLogout
 }) => {
   const [step, setStep] = useState(1);
   const [searchId, setSearchId] = useState('');
@@ -63,22 +67,43 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
   const [currentSession, setCurrentSession] = useState<api.DeliverySession | null>(null);
   const [giverSignature, setGiverSignature] = useState('');
+  const [pendingEmployees, setPendingEmployees] = useState<any[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const giverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const drawingRef = useRef(false);
   const drawingGiverRef = useRef(false);
 
-  const handleIdentify = async () => {
-    if (!searchId.trim()) return;
+  React.useEffect(() => {
+    let interval: any;
+    const fetchPending = async () => {
+      if (session) {
+        try {
+          const list = await api.getPendingEmployees(session, onLogout || (() => {}));
+          setPendingEmployees(list || []);
+        } catch (e) {
+          console.error("Error fetching pending employees:", e);
+        }
+      }
+    };
+
+    fetchPending();
+    interval = setInterval(fetchPending, 3000);
+    return () => clearInterval(interval);
+  }, [session, onLogout]);
+
+  const handleSelectCollaborator = async (doc: string) => {
+    if (!doc) return;
     setError(null);
     setIsLoadingPending(true);
     try {
-      const profile = await api.getEmployee(searchId.trim());
+      const profile = await api.getEmployee(doc);
       setEmployeeProfile(profile);
+      setSearchId(profile.document);
       
+      let pending: any = null;
       try {
-        const pending = await api.getPendingDelivery(profile.document);
+        pending = await api.getPendingDelivery(profile.document);
         if (pending) {
           setPendingDelivery(pending);
           const newCart: Record<number, number> = {};
@@ -97,13 +122,71 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       
       setStep(2);
       // Start a live session
-      const session = await api.startDeliverySession(profile.document);
-      setCurrentSession(session);
+      const sess = await api.startDeliverySession(profile.document);
+      setCurrentSession(sess);
+
+      // Sync initial cart to session immediately if there is a pending delivery
+      if (sess && pending) {
+        const selected = pending.items.map((item: any) => {
+          const product = products.find(p => p.id === item.product.id);
+          return {
+            productId: item.product.id,
+            name: product ? product.name : `Ítem #${item.product.id}`,
+            talla: product ? product.talla : 'N/A',
+            quantity: item.quantity
+          };
+        });
+        await api.updateSessionItems(sess.id, JSON.stringify(selected));
+      }
     } catch (e) {
       setError("Colaborador no encontrado. Asegúrese que el colaborador se haya registrado en el portal.");
     } finally {
       setIsLoadingPending(false);
     }
+  };
+
+  const handleRemovePendingEmployee = async (empId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("¿Está seguro que desea eliminar a este colaborador de la lista de espera?")) return;
+    try {
+      await api.updateEmployeeState(empId, 'INICIAL', session || null, onLogout || (() => {}));
+      setPendingEmployees(prev => prev.filter(emp => emp.id !== empId));
+      if (onNotify) onNotify('success', 'Colaborador removido de la lista de espera.');
+    } catch (err) {
+      console.error("Error removing pending employee:", err);
+      if (onNotify) onNotify('error', 'No se pudo remover al colaborador de la lista de espera.');
+    }
+  };
+
+  const updateCartItemQuantity = async (productId: number, quantity: number) => {
+    const newCart = { ...cart, [productId]: quantity };
+    setCart(newCart);
+
+    if (currentSession) {
+      const selected = Object.entries(newCart)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, qty]) => {
+          const prodId = Number(id);
+          const product = products.find(p => p.id === prodId);
+          return {
+            productId: prodId,
+            name: product ? product.name : `Ítem #${prodId}`,
+            talla: product ? product.talla : 'N/A',
+            quantity: qty
+          };
+        });
+      
+      try {
+        await api.updateSessionItems(currentSession.id, JSON.stringify(selected));
+      } catch (err) {
+        console.error("Error updating session items:", err);
+      }
+    }
+  };
+
+  const handleIdentify = async () => {
+    if (!searchId.trim()) return;
+    await handleSelectCollaborator(searchId.trim());
   };
 
   // Polling for employee signature
@@ -129,6 +212,21 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const selectedProducts = Object.entries(cart)
     .filter(([, qty]) => qty > 0)
     .map(([id, qty]) => ({ productId: Number(id), quantity: qty }));
+
+  const getSelectedProductsRich = () => {
+    return Object.entries(cart)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, qty]) => {
+        const prodId = Number(id);
+        const product = products.find(p => p.id === prodId);
+        return {
+          productId: prodId,
+          name: product ? product.name : `Ítem #${prodId}`,
+          talla: product ? product.talla : 'N/A',
+          quantity: qty
+        };
+      });
+  };
 
   const getCanvasPoint = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -271,25 +369,87 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
 
           <AnimatePresence mode="wait">
             {step === 1 && (
-              <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 text-center">
-                 <h3 className="text-2xl font-black text-blue-900 dark:text-white tracking-tighter">Búsqueda de Colaborador</h3>
-                 <div className="relative max-w-sm mx-auto">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
-                   <input 
-                    className="w-full bg-blue-50/50 dark:bg-white/5 border-none rounded-xl py-4 pl-12 pr-4 text-sm font-black text-blue-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Ingrese Cédula del Colaborador..."
-                    value={searchId} onChange={(e) => setSearchId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleIdentify()}
-                   />
-                 </div>
-                 {error && (
-                   <div className="flex items-center gap-2 justify-center text-rose-500 text-[10px] font-black uppercase italic">
-                      <AlertCircle size={14} /> {error}
+              <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 text-center">
+                 <div className="space-y-6">
+                   <h3 className="text-2xl font-black text-blue-900 dark:text-white tracking-tighter">Búsqueda de Colaborador</h3>
+                   <div className="relative max-w-sm mx-auto">
+                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
+                     <input 
+                      className="w-full bg-blue-50/50 dark:bg-white/5 border-none rounded-xl py-4 pl-12 pr-4 text-sm font-black text-blue-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                      placeholder="Ingrese Cédula del Colaborador..."
+                      value={searchId} onChange={(e) => setSearchId(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleIdentify()}
+                     />
                    </div>
-                 )}
-                 <button onClick={handleIdentify} disabled={isLoadingPending} className="bg-blue-600 text-white px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10 disabled:opacity-50">
-                   {isLoadingPending ? <RefreshCw className="animate-spin mx-auto" /> : "Validar Colaborador"}
-                 </button>
+                   {error && (
+                     <div className="flex items-center gap-2 justify-center text-rose-500 text-[10px] font-black uppercase italic">
+                        <AlertCircle size={14} /> {error}
+                     </div>
+                   )}
+                   <button onClick={handleIdentify} disabled={isLoadingPending} className="bg-blue-600 text-white px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10 disabled:opacity-50">
+                     {isLoadingPending ? <RefreshCw className="animate-spin mx-auto" /> : "Validar Colaborador"}
+                   </button>
+                 </div>
+
+                 {/* Live Waiting Queue */}
+                 <div className="max-w-xl mx-auto mt-8 pt-8 border-t border-slate-100 dark:border-white/5 space-y-4">
+                   <div className="flex items-center justify-between">
+                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                       Colaboradores en Espera (En Vivo)
+                     </h4>
+                     <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-md text-[9px] font-black">
+                       {pendingEmployees.length} activos
+                     </span>
+                   </div>
+                   
+                   {pendingEmployees.length === 0 ? (
+                     <div className="py-8 bg-slate-50/50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 text-center">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase italic">
+                         Esperando que los colaboradores registren su información...
+                       </p>
+                     </div>
+                   ) : (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1">
+                       {pendingEmployees.map((emp) => (
+                         <div
+                           key={emp.id}
+                           
+                           className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all text-left group"
+                         >
+                           <div className="flex items-center gap-3 min-w-0 flex-1"><div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 font-black text-sm uppercase group-hover:bg-blue-600 group-hover:text-white transition-all">
+                             {emp.fullName ? emp.fullName.charAt(0) : '?'}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <p className="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-tight group-hover:text-blue-600 transition-colors">
+                               {emp.fullName}
+                             </p>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                               {emp.cargo} • {emp.document}
+                             </p>
+                           </div>
+                           </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => handleSelectCollaborator(emp.document)}
+                                title="Iniciar Despacho"
+                                className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center transition-all"
+                              >
+                                <CheckCircle2 size={14} />
+                              </button>
+                              <button
+                                onClick={(e) => handleRemovePendingEmployee(emp.id, e)}
+                                title="Eliminar de Espera"
+                                className="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/10 dark:text-rose-400 flex items-center justify-center transition-all"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                       ))}
+                     </div>
+                   )}
+                 </div>
               </motion.div>
             )}
 
@@ -335,7 +495,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                               type="number" 
                               min={0}
                               value={cart[p.id] || 0}
-                              onChange={(e) => setCart({...cart, [p.id]: Number(e.target.value)})}
+                              onChange={(e) => updateCartItemQuantity(p.id, Number(e.target.value))}
                               className={`w-12 rounded-lg p-1 text-xs font-black text-center outline-none ${cart[p.id] ? 'bg-blue-500 text-white' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10'}`}
                             />
                          </div>
@@ -358,7 +518,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                    onClick={async () => {
                       if (currentSession) {
                         await api.updateSessionEvidence(currentSession.id, {
-                          itemsJson: JSON.stringify(selectedProducts),
+                          itemsJson: JSON.stringify(getSelectedProductsRich()),
                           photosJson: JSON.stringify(evidencePhotos),
                           giverSignature: '', // Not signed yet
                           giverFullName: 'Administrador'
@@ -500,7 +660,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                       onClick={async () => {
                         if (currentSession && giverSignature) {
                            const updated = await api.updateSessionEvidence(currentSession.id, {
-                              itemsJson: JSON.stringify(selectedProducts),
+                              itemsJson: JSON.stringify(getSelectedProductsRich()),
                               photosJson: JSON.stringify(evidencePhotos),
                               giverSignature: giverSignature,
                               giverFullName: 'Administrador Central'

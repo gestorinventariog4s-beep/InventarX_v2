@@ -108,7 +108,6 @@ function App() {
   const [activeModule, setActiveModule] = useState<ModuleId>('resumen');
   const [isLoading, setIsLoading] = useState(initialPublicReceptionState.isPublicReception);
   const [publicReceptionState, setPublicReceptionState] = useState(initialPublicReceptionState);
-  const [publicProducts, setPublicProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [inventoryProducts, setInventoryProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [inventoryAlerts, setInventoryAlerts] = useState<StockAlert[]>([]);
   const [inventorySaving, setInventorySaving] = useState(false);
@@ -158,13 +157,11 @@ function App() {
     void fetchPublicProducts()
       .then((products) => {
         if (isMounted && products.length > 0) {
-          setPublicProducts(products);
+          // Just verify product list compiles or can load
         }
       })
       .catch(() => {
-        if (isMounted) {
-          setPublicProducts(import.meta.env.DEV ? MOCK_PRODUCTS : []);
-        }
+        // Fallback silently
       })
       .finally(() => {
         if (isMounted) {
@@ -476,7 +473,9 @@ function App() {
         )}
         {activeModule === 'entregas' && (
           <DeliveriesModule 
-            products={publicProducts} 
+            products={inventoryProducts} 
+            session={session}
+            onLogout={handleLogout}
             onNotify={showToast}
             onSubmitDelivery={async (payload) => {
                setIsLoading(true);

@@ -158,9 +158,9 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     onLogout();
-    throw new Error('Sesión expirada. Ingresa nuevamente.');
+    throw new Error('Sesión expirada o no autorizada. Ingresa nuevamente.');
   }
 
   if (!response.ok) {
@@ -315,6 +315,12 @@ export const startDeliverySession = (document: string) =>
 export const getActiveDeliverySession = (document: string) => 
   publicFetch<DeliverySession>(`/api/public/delivery-sessions/active/${document}`);
 
+export const updateSessionItems = (id: number, itemsJson: string) => 
+  publicFetch<DeliverySession>(`/api/public/delivery-sessions/${id}/items`, {
+    method: 'PATCH',
+    body: JSON.stringify({ itemsJson })
+  });
+
 export const updateSessionEvidence = (id: number, data: { itemsJson: string, photosJson: string, giverSignature: string, giverFullName: string }) => 
   publicFetch<DeliverySession>(`/api/public/delivery-sessions/${id}/evidence`, {
     method: 'PATCH',
@@ -411,3 +417,20 @@ export interface EmployeeProfile {
   email: string;
   cargo: string;
 }
+
+export const getPendingEmployees = (session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<any[]>('/api/employee/pending', session, onLogout);
+
+export const getAllEmployees = (session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<any[]>('/api/employee/all', session, onLogout);
+
+export const updateEmployeeState = (id: number, state: string, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<any>(`/api/employee/${id}/state?state=${state}`, session, onLogout, {
+    method: 'PUT'
+  });
+
+export const registerEmployeeAdmin = (payload: any, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<any>('/api/employee/register', session, onLogout, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
