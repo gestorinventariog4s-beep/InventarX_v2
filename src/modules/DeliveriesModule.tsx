@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
-  Download,
+  Download, Camera,
   X
 } from 'lucide-react';
 import { Product, AuthResponse } from '../types';
@@ -56,7 +56,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [step, setStep] = useState(1);
   const [searchId, setSearchId] = useState('');
   const [employeeProfile, setEmployeeProfile] = useState<api.EmployeeProfile | null>(null);
-  const [cart, setCart] = useState<Record<number, number>>({});
+  const [cart, setCart] = useState<Record<number, { quantity: number; talla: string }>>({});
   const [notes, setNotes] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +68,16 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [currentSession, setCurrentSession] = useState<api.DeliverySession | null>(null);
   const [giverSignature, setGiverSignature] = useState('');
   const [pendingEmployees, setPendingEmployees] = useState<any[]>([]);
+  const [isResending, setIsResending] = useState<Record<string, boolean>>({});
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('ALL');
+  const [receiverSelfie, setReceiverSelfie] = useState('');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const giverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const drawingRef = useRef(false);
-  const drawingGiverRef = useRef(false);
 
   React.useEffect(() => {
     let interval: any;
@@ -106,9 +111,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
         pending = await api.getPendingDelivery(profile.document);
         if (pending) {
           setPendingDelivery(pending);
-          const newCart: Record<number, number> = {};
+          const newCart: Record<number, { quantity: number; talla: string }> = {};
           pending.items.forEach((item: any) => {
-            newCart[item.product.id] = item.quantity;
+            newCart[item.product.id] = {
+              quantity: item.quantity,
+              talla: item.talla || item.product.talla || 'M'
+            };
           });
           setCart(newCart);
         } else {
@@ -158,28 +166,48 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     }
   };
 
-  const updateCartItemQuantity = async (productId: number, quantity: number) => {
-    const newCart = { ...cart, [productId]: quantity };
+  const handleResendEmail = async (document: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsResending(prev => ({ ...prev, [document]: true }));
+    try {
+      await api.resendDeliveryEmail(document, session || null, onLogout || (() => {}));
+      if (onNotify) onNotify('success', 'Correo de aceptación enviado con éxito.');
+    } catch (err) {
+      console.error("Error resending email:", err);
+      if (onNotify) onNotify('error', 'No se pudo enviar el correo de aceptación.');
+    } finally {
+      setIsResending(prev => ({ ...prev, [document]: false }));
+    }
+  };
+
+  const updateCartItemQuantity = async (productId: number, quantity: number, talla?: string) => {
+    const currentItem = cart[productId];
+    const currentTalla = talla || currentItem?.talla || products.find(p => p.id === productId)?.sizeStocks?.[0]?.talla || 'M';
+    
+    const newCart = { 
+      ...cart, 
+      [productId]: { quantity, talla: currentTalla }
+    };
     setCart(newCart);
 
     if (currentSession) {
       const selected = Object.entries(newCart)
-        .filter(([, qty]) => qty > 0)
-        .map(([id, qty]) => {
+        .filter(([, item]) => item.quantity > 0)
+        .map(([id, item]) => {
           const prodId = Number(id);
           const product = products.find(p => p.id === prodId);
           return {
             productId: prodId,
             name: product ? product.name : `Ítem #${prodId}`,
-            talla: product ? product.talla : 'N/A',
-            quantity: qty
+            talla: item.talla,
+            quantity: item.quantity
           };
         });
       
       try {
         await api.updateSessionItems(currentSession.id, JSON.stringify(selected));
       } catch (err) {
-        console.error("Error updating session items:", err);
+        console.error('Error updating session items:', err);
       }
     }
   };
@@ -189,45 +217,38 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     await handleSelectCollaborator(searchId.trim());
   };
 
-  // Polling for employee signature
-  React.useEffect(() => {
-    let interval: any;
-    if (currentSession && currentSession.status === 'EVIDENCE_READY') {
-      interval = setInterval(async () => {
-        try {
-          const session = await api.getActiveDeliverySession(currentSession.employeeDocument);
-          if (session.status === 'SIGNED' || session.receiverSignature) {
-            setCurrentSession(session);
-            setSignatureDataUrl(session.receiverSignature);
-            clearInterval(interval);
-          }
-        } catch (e) {
-          console.error("Polling error:", e);
-        }
-      }, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [currentSession]);
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                          p.sku.toLowerCase().includes(productSearch.toLowerCase());
+    
+    const matchesCategory = productCategory === 'ALL' || 
+                            (p.category?.name && p.category.name.toUpperCase() === productCategory.toUpperCase());
+    
+    return matchesSearch && matchesCategory;
+  });
 
   const selectedProducts = Object.entries(cart)
-    .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ productId: Number(id), quantity: qty }));
+    .filter(([, item]) => item.quantity > 0)
+    .map(([id, item]) => ({ 
+      productId: Number(id), 
+      quantity: item.quantity,
+      talla: item.talla
+    }));
 
   const getSelectedProductsRich = () => {
     return Object.entries(cart)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, qty]) => {
+      .filter(([, item]) => item.quantity > 0)
+      .map(([id, item]) => {
         const prodId = Number(id);
         const product = products.find(p => p.id === prodId);
         return {
           productId: prodId,
           name: product ? product.name : `Ítem #${prodId}`,
-          talla: product ? product.talla : 'N/A',
-          quantity: qty
+          talla: item.talla,
+          quantity: item.quantity
         };
       });
   };
-
   const getCanvasPoint = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -238,28 +259,167 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
+  const generateCorporateGiverSignature = (userName: string, role: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Beautiful light slate corporate stamp background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 600, 200);
+
+    // Navy/Blue corporate borders
+    ctx.strokeStyle = '#1e3a8a';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, 580, 180);
+
+    // Yellow gold cert line
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(16, 16, 568, 168);
+
+    // Digital Seal Icon Frame
+    ctx.beginPath();
+    ctx.arc(65, 100, 32, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fill();
+
+    // Checkmark inside icon
+    ctx.beginPath();
+    ctx.moveTo(53, 100);
+    ctx.lineTo(61, 108);
+    ctx.lineTo(77, 92);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Official Seal Labels
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 12px sans-serif';
+    ctx.fillText('CERTIFICACIÓN DE ENTREGA CORPORATIVA', 120, 50);
+
+    ctx.fillStyle = '#2563eb';
+    ctx.font = '900 18px sans-serif';
+    ctx.fillText(userName.toUpperCase(), 120, 80);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '850 10px sans-serif';
+    ctx.fillText(`CARGO ADMINISTRATIVO: ${role.toUpperCase()}`, 120, 105);
+
+    const dateStr = new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' });
+    ctx.fillText(`FECHA CERTIFICADO: ${dateStr} (COLOMBIA)`, 120, 125);
+
+    const secHash = 'INV-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    ctx.fillText(`SISTEMA INVENTARX - SELLO DIGITAL NRO: ${secHash}`, 120, 145);
+
+    ctx.fillStyle = '#d97706';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('★ AVALADO POR EL SISTEMA GENERAL DE DOTACIÓN ★', 120, 168);
+
+    return canvas.toDataURL();
+  };
+
+  // Auto-generate admin corporate seal when admin proceeds to sign
+  React.useEffect(() => {
+    if (step === 3 && session && !giverSignature) {
+      const seal = generateCorporateGiverSignature(session.fullName || session.username, session.role || 'ADMIN');
+      setGiverSignature(seal);
+    }
+  }, [step, session, giverSignature]);
+
+  // Webcam/Camera management methods for colaborador selfie
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    setReceiverSelfie('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access error:', err);
+    }
+  };
+
+  const captureSelfie = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Mirrored selfie
+    ctx.translate(400, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, 400, 400);
+    
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    setReceiverSelfie(dataUrl);
+    stopCamera();
+  };
+
+  const stopCamera = () => {
+    setIsCameraActive(false);
+    const video = videoRef.current;
+    if (video && video.srcObject) {
+      const stream = video.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+    }
+  };
+
+  // Smooth, high-fidelity signature pad drawing handlers
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    ctx.strokeStyle = '#1e3a8a'; // ink dark blue
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
     const { x, y } = getCanvasPoint(event);
+    pointsRef.current = [{ x, y }];
+    
     ctx.beginPath();
     ctx.moveTo(x, y);
     drawingRef.current = true;
   };
 
   const draw = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
     if (!drawingRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
     const { x, y } = getCanvasPoint(event);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
+    pointsRef.current.push({ x, y });
+    
+    // Redraw entire stroke path utilizing quadratic curves for high-fidelity smoothing!
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    if (pointsRef.current.length > 0) {
+      ctx.moveTo(pointsRef.current[0].x, pointsRef.current[0].y);
+      for (let i = 1; i < pointsRef.current.length - 1; i++) {
+        const xc = (pointsRef.current[i].x + pointsRef.current[i + 1].x) / 2;
+        const yc = (pointsRef.current[i].y + pointsRef.current[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pointsRef.current[i].x, pointsRef.current[i].y, xc, yc);
+      }
+      if (pointsRef.current.length > 1) {
+        const last = pointsRef.current.length - 1;
+        ctx.lineTo(pointsRef.current[last].x, pointsRef.current[last].y);
+      }
+    }
     ctx.stroke();
   };
 
@@ -276,8 +436,8 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     const ctx = canvas.getContext('2d');
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     setSignatureDataUrl('');
+    pointsRef.current = [];
   };
-  
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -389,66 +549,165 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                    <button onClick={handleIdentify} disabled={isLoadingPending} className="bg-blue-600 text-white px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10 disabled:opacity-50">
                      {isLoadingPending ? <RefreshCw className="animate-spin mx-auto" /> : "Validar Colaborador"}
                    </button>
-                 </div>
-
-                 {/* Live Waiting Queue */}
-                 <div className="max-w-xl mx-auto mt-8 pt-8 border-t border-slate-100 dark:border-white/5 space-y-4">
-                   <div className="flex items-center justify-between">
-                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                       Colaboradores en Espera (En Vivo)
-                     </h4>
-                     <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-md text-[9px] font-black">
-                       {pendingEmployees.length} activos
-                     </span>
-                   </div>
                    
-                   {pendingEmployees.length === 0 ? (
-                     <div className="py-8 bg-slate-50/50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 text-center">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase italic">
-                         Esperando que los colaboradores registren su información...
-                       </p>
-                     </div>
-                   ) : (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1">
-                       {pendingEmployees.map((emp) => (
-                         <div
-                           key={emp.id}
-                           
-                           className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all text-left group"
-                         >
-                           <div className="flex items-center gap-3 min-w-0 flex-1"><div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 font-black text-sm uppercase group-hover:bg-blue-600 group-hover:text-white transition-all">
-                             {emp.fullName ? emp.fullName.charAt(0) : '?'}
-                           </div>
-                           <div className="flex-1 min-w-0">
-                             <p className="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-tight group-hover:text-blue-600 transition-colors">
-                               {emp.fullName}
-                             </p>
-                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                               {emp.cargo} • {emp.document}
-                             </p>
-                           </div>
-                           </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => handleSelectCollaborator(emp.document)}
-                                title="Iniciar Despacho"
-                                className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center transition-all"
-                              >
-                                <CheckCircle2 size={14} />
-                              </button>
-                              <button
-                                onClick={(e) => handleRemovePendingEmployee(emp.id, e)}
-                                title="Eliminar de Espera"
-                                className="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/10 dark:text-rose-400 flex items-center justify-center transition-all"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          </div>
-                       ))}
-                     </div>
-                   )}
+                   {/* Live Waiting Queue (Rediseñado como Tabla Premium Optimizada) */}
+                  <div className="max-w-4xl mx-auto mt-8 pt-8 border-t border-slate-100 dark:border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        Colaboradores en Espera (En Vivo)
+                      </h4>
+                      <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-md text-[9px] font-black">
+                        {pendingEmployees.length} activos
+                      </span>
+                    </div>
+                    
+                    {pendingEmployees.length === 0 ? (
+                      <div className="py-8 bg-slate-50/50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 text-center">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase italic">
+                          Esperando que los colaboradores registren su información...
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-3xl border border-slate-100 dark:border-white/10 shadow-sm bg-white dark:bg-slate-900/50 backdrop-blur-xl">
+                        <table className="w-full text-left border-collapse min-w-[700px]">
+                          <thead>
+                            <tr className="bg-slate-50 dark:bg-white/5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5">
+                              <th className="py-3.5 px-5">Colaborador</th>
+                              <th className="py-3.5 px-4">Cargo</th>
+                              <th className="py-3.5 px-4">Correo</th>
+                              <th className="py-3.5 px-4 text-center">Progreso Paso a Paso</th>
+                              <th className="py-3.5 px-5 text-right">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                            {pendingEmployees.map((emp) => {
+                              const isDelivered = emp.processState === 'ENTREGADO';
+                              const isInProgress = emp.processState === 'EN_PROCESO';
+                              const isPending = emp.processState === 'PENDIENTE_ENTREGA';
+                              
+                              return (
+                                <tr key={emp.id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+                                  <td className="py-3 px-5">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-450 font-black text-xs uppercase group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        {emp.fullName ? emp.fullName.charAt(0) : '?'}
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight group-hover:text-blue-600 transition-colors">
+                                          {emp.fullName}
+                                        </p>
+                                        <p className="text-[9px] font-bold text-slate-400 mt-0.5 tracking-wider">
+                                          C.C. {emp.document}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                      {emp.cargo || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                      {emp.email || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {/* Paso a paso live tracker */}
+                                    <div className="flex items-center justify-center gap-1 max-w-[200px] mx-auto">
+                                      <div className="flex items-center">
+                                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black ${
+                                          isDelivered || isInProgress || isPending
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                        }`} title="Registro">1</div>
+                                        <div className={`w-6 h-0.5 ${
+                                          isDelivered || isInProgress
+                                            ? 'bg-emerald-500'
+                                            : 'bg-slate-200 dark:bg-slate-800'
+                                        }`} />
+                                      </div>
+                                      
+                                      <div className="flex items-center">
+                                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black ${
+                                          isDelivered
+                                            ? 'bg-emerald-500 text-white'
+                                            : isInProgress
+                                              ? 'bg-blue-600 text-white animate-pulse'
+                                              : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                        }`} title="Selección & Firma">2</div>
+                                        <div className={`w-6 h-0.5 ${
+                                          isDelivered
+                                            ? 'bg-emerald-500'
+                                            : 'bg-slate-200 dark:bg-slate-800'
+                                        }`} />
+                                      </div>
+
+                                      <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black ${
+                                        isDelivered
+                                          ? 'bg-emerald-500 text-white'
+                                          : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                      }`} title="Entregado">3</div>
+                                    </div>
+                                    <p className="text-[8px] font-black text-center mt-1 uppercase tracking-wider text-slate-400">
+                                      {isDelivered ? 'Entregado' : isInProgress ? 'En Selección' : 'En Espera'}
+                                    </p>
+                                  </td>
+                                  <td className="py-3 px-5 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      {/* Resend email action */}
+                                      {isDelivered ? (
+                                        <button
+                                          onClick={(e) => handleResendEmail(emp.document, e)}
+                                          disabled={isResending[emp.document]}
+                                          title="Reenviar Acta por Correo"
+                                          className={`px-2.5 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
+                                            isResending[emp.document]
+                                              ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-400 cursor-not-allowed'
+                                              : 'bg-blue-50 hover:bg-blue-500 text-blue-600 hover:text-white dark:bg-blue-500/10 dark:text-blue-400 hover:shadow-md hover:shadow-blue-500/10'
+                                          }`}
+                                        >
+                                          {isResending[emp.document] ? (
+                                            <>
+                                              <RefreshCw size={10} className="animate-spin" />
+                                              Enviando...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Mail size={10} />
+                                              Enviar Acta
+                                            </>
+                                          )}
+                                        </button>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleSelectCollaborator(emp.document)}
+                                          title="Iniciar Entrega"
+                                          className="px-2.5 py-1.5 rounded-xl text-[8px] font-black bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center gap-1 hover:shadow-md hover:shadow-emerald-500/10 transition-all uppercase tracking-widest"
+                                        >
+                                          <CheckCircle2 size={10} />
+                                          Iniciar Entrega
+                                        </button>
+                                      )}
+                                      
+                                      <button
+                                        onClick={(e) => handleRemovePendingEmployee(emp.id, e)}
+                                        title="Eliminar de Espera"
+                                        className="w-7 h-7 rounded-xl bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/10 dark:text-rose-450 flex items-center justify-center hover:shadow-md hover:shadow-rose-500/10 transition-all"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                  </div>
               </motion.div>
             )}
@@ -483,27 +742,138 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                     }} className="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-700 underline">Cambiar Colaborador</button>
                  </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                    {products.map(p => (
-                      <div 
-                        key={p.id}
-                        className={`p-5 rounded-2xl border transition-all ${cart[p.id] ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/10 text-slate-900 dark:text-white'}`}
-                      >
-                         <div className="flex justify-between items-start mb-3">
-                            <PackageCheck size={24} className={cart[p.id] ? 'text-blue-200' : 'text-blue-600'} />
-                            <input 
-                              type="number" 
-                              min={0}
-                              value={cart[p.id] || 0}
-                              onChange={(e) => updateCartItemQuantity(p.id, Number(e.target.value))}
-                              className={`w-12 rounded-lg p-1 text-xs font-black text-center outline-none ${cart[p.id] ? 'bg-blue-500 text-white' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10'}`}
-                            />
-                         </div>
-                         <p className="font-black text-sm leading-tight mb-1">{p.name}</p>
-                         <p translate="no" className={`notranslate text-[10px] font-bold ${cart[p.id] ? 'text-blue-100' : 'text-slate-400'}`}>Talla: {p.talla || 'N/A'}</p>
-                      </div>
-                    ))}
-                 </div>
+                  {/* Buscador y Categorías de Dotación (Premium UI) */}
+                  <div className="space-y-4 mb-6">
+                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/50 dark:bg-white/5 p-4 rounded-3xl border border-slate-100 dark:border-white/10">
+                        {/* Buscador */}
+                        <div className="relative w-full md:w-96">
+                           <input
+                              type="text"
+                              placeholder="Buscar dotación por nombre, SKU..."
+                              value={productSearch}
+                              onChange={e => setProductSearch(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white transition-all"
+                           />
+                           <Search className="absolute left-3.5 top-3.5 text-slate-400" size={15} />
+                           {productSearch && (
+                              <button 
+                                 onClick={() => setProductSearch("")}
+                                 className="absolute right-3.5 top-3.5 text-[9px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-all"
+                              >
+                                 Limpiar
+                              </button>
+                           )}
+                        </div>
+
+                        {/* Categorías (Filtros rápidos) */}
+                        <div className="flex flex-wrap gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                           {["ALL", ...Array.from(new Set(products.map(p => p.category?.name).filter(Boolean)))].map(cat => {
+                              const isSelected = productCategory === cat;
+                              return (
+                                 <button
+                                    key={cat}
+                                    onClick={() => setProductCategory(cat)}
+                                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all duration-200 ${
+                                       isSelected
+                                          ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-600/25 scale-102"
+                                          : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-white/10"
+                                    }`}
+                                 >
+                                    {cat === "ALL" ? "Todos" : cat}
+                                 </button>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Lista de productos */}
+                  {filteredProducts.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center p-12 bg-slate-50/30 dark:bg-white/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10 text-center min-h-[250px]">
+                        <AlertCircle className="text-slate-400 mb-3 animate-pulse" size={32} />
+                        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">No se encontraron dotaciones</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 max-w-[280px]">Prueba escribiendo otro término de búsqueda o cambiando el filtro de categoría.</p>
+                     </div>
+                  ) : (
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[420px] overflow-y-auto pr-2">
+                        {filteredProducts.map(p => {
+                          const isInCart = cart[p.id] && cart[p.id].quantity > 0;
+                          return (
+                            <div 
+                              key={p.id}
+                              className={`p-5 rounded-3xl border transition-all duration-250 flex flex-col justify-between ${
+                                 isInCart 
+                                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/25 scale-101" 
+                                    : "bg-white dark:bg-white/5 border-slate-150 dark:border-white/10 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-white/20"
+                              }`}
+                            >
+                               <div>
+                                  <div className="flex justify-between items-start mb-3">
+                                     <PackageCheck size={24} className={isInCart ? "text-blue-200" : "text-blue-600"} />
+                                     <input 
+                                       type="number" 
+                                       min={0}
+                                       value={cart[p.id]?.quantity || 0}
+                                       onChange={(e) => updateCartItemQuantity(p.id, Number(e.target.value))}
+                                       className={`w-12 rounded-xl p-1.5 text-xs font-black text-center outline-none transition-all ${
+                                          isInCart 
+                                             ? "bg-blue-500 text-white border-none focus:ring-2 focus:ring-white/20" 
+                                             : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500/20"
+                                       }`}
+                                     />
+                                  </div>
+                                  <p className="font-black text-sm leading-tight mb-1">{p.name}</p>
+                                  {p.category?.name && (
+                                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider mb-2.5 ${
+                                        isInCart ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400"
+                                     }`}>{p.category.name}</span>
+                                  )}
+                               </div>
+                               
+                               {p.sizeStocks && p.sizeStocks.length > 0 ? (
+                                 <div className="mt-4 border-t border-dashed border-slate-200/20 pt-3">
+                                   <label className={`text-[8px] font-black uppercase tracking-wider block mb-2 ${isInCart ? "text-blue-200" : "text-slate-400"}`}>Seleccionar Talla:</label>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {p.sizeStocks.map(ss => {
+                                        const isSelected = (cart[p.id]?.talla || p.sizeStocks[0].talla) === ss.talla;
+                                        const hasStock = ss.stock > 0;
+                                        return (
+                                           <button
+                                              key={ss.id}
+                                              onClick={() => updateCartItemQuantity(p.id, cart[p.id]?.quantity || 0, ss.talla)}
+                                              className={`px-2.5 py-1.5 rounded-xl font-black text-[9px] tracking-wider transition-all duration-200 flex flex-col items-center min-w-[42px] border ${
+                                                 isSelected
+                                                    ? isInCart
+                                                       ? "bg-white text-blue-600 border-white shadow-md scale-105"
+                                                       : "bg-blue-600 text-white border-blue-500 shadow-md scale-105"
+                                                    : !hasStock
+                                                       ? "bg-slate-100/10 text-slate-400/40 border-slate-200/5 cursor-not-allowed line-through"
+                                                       : isInCart
+                                                          ? "bg-blue-700/50 text-blue-100 border-blue-600/40 hover:bg-blue-700/70 hover:text-white hover:scale-105"
+                                                          : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:scale-105"
+                                              }`}
+                                              disabled={!hasStock && !isSelected}
+                                           >
+                                              <span className="font-extrabold text-[10px]">{ss.talla}</span>
+                                              <span className={`text-[7px] font-black mt-0.5 ${isSelected ? (isInCart ? "text-blue-500" : "text-blue-200") : "text-slate-400"}`}>
+                                                 {ss.stock}
+                                              </span>
+                                           </button>
+                                        );
+                                     })}
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <div className="mt-3 border-t border-dashed border-slate-200/20 pt-2 flex justify-between items-center text-[10px] font-bold">
+                                    <span className={isInCart ? "text-blue-200" : "text-slate-400"}>Talla Única:</span>
+                                    <span className={isInCart ? "text-white" : "text-slate-800 dark:text-slate-200"}>{p.talla || "N/A"}</span>
+                                 </div>
+                               )}
+                            </div>
+                          );
+                        })}
+                     </div>
+                  )}
 
                  <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Observaciones de Entrega</label>
@@ -582,196 +952,211 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                     </div>
                  </div>
 
-                 {/* Phase 1.5: Giver (Admin) Signature */}
-                 <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                       <Signature size={14} className="text-blue-500" /> 2. Firma Quien Entrega (Administrador)
-                    </label>
-                    <div className="bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-3xl p-4">
-                        <canvas 
-                          ref={giverCanvasRef} width={600} height={120}
-                          className="w-full h-24 bg-white/50 rounded-xl cursor-crosshair border border-dashed border-slate-300"
-                          onMouseDown={(e) => {
-                            const canvas = giverCanvasRef.current;
-                            if (!canvas) return;
-                            const ctx = canvas.getContext('2d');
-                            if (!ctx) return;
-                            const rect = canvas.getBoundingClientRect();
-                            ctx.beginPath();
-                            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-                            drawingGiverRef.current = true;
-                          }}
-                          onMouseMove={(e) => {
-                            if (!drawingGiverRef.current) return;
-                            const canvas = giverCanvasRef.current;
-                            if (!canvas) return;
-                            const ctx = canvas.getContext('2d');
-                            if (!ctx) return;
-                            const rect = canvas.getBoundingClientRect();
-                            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-                            ctx.strokeStyle = '#2563eb';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                          }}
-                          onMouseUp={() => {
-                            drawingGiverRef.current = false;
-                            setGiverSignature(giverCanvasRef.current?.toDataURL() || '');
-                          }}
-                          onTouchStart={(e) => {
-                            const canvas = giverCanvasRef.current;
-                            if (!canvas) return;
-                            const ctx = canvas.getContext('2d');
-                            if (!ctx) return;
-                            const rect = canvas.getBoundingClientRect();
-                            const touch = e.touches[0];
-                            ctx.beginPath();
-                            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-                            drawingGiverRef.current = true;
-                            e.preventDefault();
-                          }}
-                          onTouchMove={(e) => {
-                            if (!drawingGiverRef.current) return;
-                            const canvas = giverCanvasRef.current;
-                            if (!canvas) return;
-                            const ctx = canvas.getContext('2d');
-                            if (!ctx) return;
-                            const rect = canvas.getBoundingClientRect();
-                            const touch = e.touches[0];
-                            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-                            ctx.strokeStyle = '#2563eb';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                            e.preventDefault();
-                          }}
-                          onTouchEnd={() => {
-                            drawingGiverRef.current = false;
-                            setGiverSignature(giverCanvasRef.current?.toDataURL() || '');
-                          }}
-                        />
-                        <button onClick={() => {
-                          const ctx = giverCanvasRef.current?.getContext('2d');
-                          ctx?.clearRect(0, 0, 800, 200);
-                          setGiverSignature('');
-                        }} className="text-[9px] font-black text-rose-500 uppercase tracking-widest mt-2 flex items-center gap-1">
-                          <Eraser size={12} /> Limpiar
-                        </button>
-                    </div>
-                    <button 
-                      onClick={async () => {
-                        if (currentSession && giverSignature) {
-                           const updated = await api.updateSessionEvidence(currentSession.id, {
-                              itemsJson: JSON.stringify(getSelectedProductsRich()),
-                              photosJson: JSON.stringify(evidencePhotos),
-                              giverSignature: giverSignature,
-                              giverFullName: 'Administrador Central'
-                           });
-                           setCurrentSession(updated);
-                        }
-                      }}
-                      className="text-[9px] font-black bg-blue-100 text-blue-700 px-4 py-2 rounded-lg uppercase tracking-widest"
-                    >
-                      Publicar Evidencia para el Colaborador
-                    </button>
-                 </div>
-
-                  {/* Phase 2: Employee Signature */}
-                 <div className={`space-y-4 transition-all duration-500 ${evidencePhotos.length === 0 || !giverSignature ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                    <div className="flex items-center justify-between">
-                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                          <Signature size={14} className="text-blue-500" /> 3. Firma de Aceptación (Colaborador)
-                       </label>
-                       {signatureDataUrl ? (
-                          <div className="flex items-center gap-1 text-emerald-500 text-[9px] font-black uppercase">
-                             <CheckCircle2 size={12} /> Firma Recibida (Remota)
-                          </div>
-                       ) : (
-                          <div className="flex items-center gap-1 text-blue-500 text-[9px] font-black uppercase animate-pulse">
-                             <RefreshCw size={12} className="animate-spin" /> Esperando Firma Remota...
-                          </div>
-                       )}
-                    </div>
-                    
-                    <div className="bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-3xl p-4 md:p-8">
-                        {signatureDataUrl ? (
-                           <img src={signatureDataUrl} className="w-full h-32 object-contain bg-white/50 rounded-2xl p-2" alt="Firma Colaborador" />
+                  {/* Phase 2: Sello Digital Corporativo (Administrador) */}
+                  <div className="space-y-4">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-blue-500" /> 2. Sello Digital Autorizado de Entrega (Administrador)
+                     </label>
+                     <div className="bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-3xl p-6">
+                        {giverSignature ? (
+                           <div className="space-y-4">
+                              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-inner max-w-xl mx-auto overflow-hidden">
+                                 <img src={giverSignature} className="w-full h-auto object-contain rounded-xl" alt="Sello Corporativo" />
+                              </div>
+                              <div className="flex justify-center">
+                                 <button 
+                                    onClick={() => {
+                                       const seal = generateCorporateGiverSignature(session?.fullName || session?.username || "Administrador", session?.role || "ADMIN");
+                                       setGiverSignature(seal);
+                                    }}
+                                    className="text-[9px] font-black bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-xl uppercase tracking-widest hover:scale-102 transition-all"
+                                 >
+                                    Regenerar Sello Corporativo
+                                 </button>
+                              </div>
+                           </div>
                         ) : (
-                           <div className="bg-white dark:bg-white/5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-2 overflow-hidden relative">
-                              <canvas 
-                                ref={canvasRef} width={800} height={200}
-                                className="w-full h-40 bg-blue-50/20 rounded-xl cursor-crosshair"
-                                onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={endDrawing} onMouseLeave={endDrawing}
-                                onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={endDrawing}
-                              />
-                              <button onClick={clearSignature} className="absolute bottom-6 right-6 text-[9px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 hover:underline">
-                                <Eraser size={14} /> Limpiar Firma (Local)
-                              </button>
+                           <div className="text-center py-6">
+                              <p className="text-xs font-bold text-slate-400">Generando sello de seguridad...</p>
                            </div>
                         )}
-                    </div>
-                    
-                    {(!giverSignature || evidencePhotos.length === 0) && (
-                       <p className="text-center text-[9px] font-black text-amber-500 uppercase italic">
-                          * Debe registrar fotos y firmar como administrador para habilitar la firma del colaborador
-                       </p>
-                    )}
-                 </div>
+                     </div>
+                     <button 
+                       onClick={async () => {
+                         if (currentSession && giverSignature) {
+                            const updated = await api.updateSessionEvidence(currentSession.id, {
+                               itemsJson: JSON.stringify(getSelectedProductsRich()),
+                               photosJson: JSON.stringify(receiverSelfie ? [receiverSelfie, ...evidencePhotos] : evidencePhotos),
+                               giverSignature: giverSignature,
+                               giverFullName: session?.fullName || "Administrador Central"
+                            });
+                            setCurrentSession(updated);
+                            if (onNotify) onNotify("success", "Sello y evidencias publicados para el colaborador.");
+                         }
+                       }}
+                       className="text-[9px] font-black bg-blue-600 text-white px-5 py-3 rounded-2xl uppercase tracking-widest shadow-md shadow-blue-500/10 hover:bg-blue-500 hover:scale-102 transition-all w-full md:w-auto"
+                     >
+                       Publicar Firma y Evidencias para el Colaborador
+                     </button>
+                  </div>
 
-                 <div className="flex gap-4">
-                    <button onClick={() => setStep(2)} className="flex-1 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-600 dark:text-white">Atrás</button>
-                    <button
-                      onClick={async () => {
-                        if (!signatureDataUrl || evidencePhotos.length === 0 || !giverSignature) return;
-                        try {
-                           const response = await onSubmitDelivery({
-                             employeeFullName: employeeProfile?.fullName || '',
-                             employeeDocument: employeeProfile?.document || '',
-                             employeeEmail: employeeProfile?.email || '',
-                             employeeCargo: employeeProfile?.cargo || '',
-                             items: selectedProducts,
-                             notes,
-                             signatureDataUrl,
-                             giverSignatureDataUrl: giverSignature,
-                             giverFullName: 'Administrador Central',
-                             evidencePhotos
-                           });
-                          
-                          if (currentSession) {
-                             await api.completeDeliverySession(currentSession.id);
-                          }
-                          
-                          const actaData = {
-                            nombre: employeeProfile?.fullName || 'N/A',
-                            identificacion: employeeProfile?.document || 'N/A',
-                            cargo: employeeProfile?.cargo || 'N/A',
-                            nroActa: response.actaNumber || 'S/N',
-                            articulos: selectedProducts.map(sp => {
-                               const p = products.find(prod => prod.id === sp.productId);
-                               return {
-                                  descripcion: p?.name || 'N/A',
-                                  talla: p?.talla || 'N/A',
-                                  cantidad: sp.quantity,
-                                  imagen: ''
-                               };
-                            }),
+                  {/* Phase 3: Employee Signature & Selfie Receipt (Colaborador) */}
+                  <div className={`space-y-6 transition-all duration-500 ${evidencePhotos.length === 0 || !giverSignature ? "opacity-30 pointer-events-none" : "opacity-100"}`}>
+                     <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                           <Signature size={14} className="text-blue-500" /> 3. Firma de Conformidad & Selfie de Recepción (Colaborador)
+                        </label>
+                        {signatureDataUrl ? (
+                           <div className="flex items-center gap-1 text-emerald-500 text-[9px] font-black uppercase">
+                              <CheckCircle2 size={12} /> Firma Registrada
+                           </div>
+                        ) : (
+                           <div className="flex items-center gap-1 text-blue-500 text-[9px] font-black uppercase animate-pulse">
+                              <RefreshCw size={12} className="animate-spin" /> Esperando Firma...
+                           </div>
+                        )}
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-3xl p-6">
+                        {/* Col 1: Smooth ink Signature */}
+                        <div className="space-y-3">
+                           <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Trazado de Firma Digital</h4>
+                           {signatureDataUrl ? (
+                              <div className="bg-white/90 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm h-48 flex items-center justify-center">
+                                 <img src={signatureDataUrl} className="max-h-full max-w-full object-contain" alt="Firma Colaborador" />
+                              </div>
+                           ) : (
+                              <div className="bg-white dark:bg-white/5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-2 overflow-hidden relative">
+                                 <canvas 
+                                   ref={canvasRef} width={600} height={180}
+                                   className="w-full h-44 bg-blue-50/20 rounded-xl cursor-crosshair"
+                                   onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={endDrawing} onMouseLeave={endDrawing}
+                                   onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={endDrawing}
+                                 />
+                                 <button onClick={clearSignature} className="absolute bottom-6 right-6 text-[9px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 hover:underline">
+                                   <Eraser size={14} /> Limpiar Firma
+                                 </button>
+                              </div>
+                           )}
+                           <p className="text-[9px] text-slate-400 font-bold italic">* Firma con el mouse o pantalla táctil con trazo suavizado de alta fidelidad.</p>
+                        </div>
+
+                        {/* Col 2: Selfie Receipt Capture */}
+                        <div className="space-y-3">
+                           <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Selfie de Recepción (Seguridad)</h4>
+                           
+                           {isCameraActive ? (
+                              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative h-48 flex items-center justify-center">
+                                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                                 <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 px-4">
+                                    <button 
+                                       onClick={captureSelfie}
+                                       className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-lg"
+                                    >
+                                       Tomar Foto
+                                    </button>
+                                    <button 
+                                       onClick={stopCamera}
+                                       className="bg-rose-600 hover:bg-rose-500 text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-lg"
+                                    >
+                                       Cancelar
+                                    </button>
+                                 </div>
+                              </div>
+                           ) : receiverSelfie ? (
+                              <div className="bg-white/95 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm h-48 flex flex-col items-center justify-center relative group">
+                                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-100 shadow-md">
+                                    <img src={receiverSelfie} className="w-full h-full object-cover" alt="Selfie Colaborador" />
+                                 </div>
+                                 <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-2 flex items-center gap-1">
+                                    <CheckCircle2 size={10} /> Selfie Validado
+                                 </span>
+                                 <button 
+                                    onClick={startCamera}
+                                    className="absolute top-2 right-2 w-6 h-6 bg-blue-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                                 >
+                                    <Camera size={14} />
+                                 </button>
+                              </div>
+                           ) : (
+                              <div className="border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-white/5 rounded-2xl h-48 flex flex-col items-center justify-center text-center p-4">
+                                 <Camera className="text-slate-400 mb-2" size={32} />
+                                 <button 
+                                    onClick={startCamera}
+                                    className="bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all shadow-md"
+                                 >
+                                    Activar Cámara & Tomar Selfie
+                                 </button>
+                                 <p className="text-[8px] text-slate-400 font-bold mt-2 max-w-[200px]">Usa la cámara web para tomar una selfie rápida como comprobante oficial de entrega.</p>
+                              </div>
+                           )}
+                        </div>
+                     </div> border border-dashed border-slate-300
+
+                     {(!giverSignature || evidencePhotos.length === 0) && (
+                        <p className="text-center text-[9px] font-black text-amber-500 uppercase italic">
+                           * Debe registrar fotos y firmar como administrador para habilitar la firma del colaborador
+                        </p>
+                     )}
+                  </div>
+
+                  <div className="flex gap-4">
+                     <button onClick={() => setStep(2)} className="flex-1 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-600 dark:text-white">Atrás</button>
+                     <button
+                       onClick={async () => {
+                         if (!signatureDataUrl || evidencePhotos.length === 0 || !giverSignature) return;
+                         try {
+                            const finalEvidencePhotos = receiverSelfie ? [receiverSelfie, ...evidencePhotos] : evidencePhotos;
+                            const response = await onSubmitDelivery({
+                              employeeFullName: employeeProfile?.fullName || "",
+                              employeeDocument: employeeProfile?.document || "",
+                              employeeEmail: employeeProfile?.email || "",
+                              employeeCargo: employeeProfile?.cargo || "",
+                              items: selectedProducts,
+                              notes,
+                              signatureDataUrl,
+                              giverSignatureDataUrl: giverSignature,
+                              giverFullName: session?.fullName || "Administrador Central",
+                              evidencePhotos: finalEvidencePhotos
+                            });
+                           
+                           if (currentSession) {
+                              await api.completeDeliverySession(currentSession.id);
+                           }
+                           
+                           const actaData = {
+                             nombre: employeeProfile?.fullName || "N/A",
+                             identificacion: employeeProfile?.document || "N/A",
+                             cargo: employeeProfile?.cargo || "N/A",
+                             nroActa: response.actaNumber || "S/N",
+                             articulos: selectedProducts.map(sp => {
+                                const p = products.find(prod => prod.id === sp.productId);
+                                return {
+                                   descripcion: p?.name || "N/A",
+                                   talla: sp.talla || "N/A",
+                                   cantidad: sp.quantity,
+                                   imagen: ""
+                                };
+                             }),
                              firmaBase64: signatureDataUrl,
                              firmaGiverBase64: giverSignature,
-                             nombreGiver: 'Administrador Central',
-                             evidencias: evidencePhotos
+                             nombreGiver: session?.fullName || "Administrador Central",
+                             evidencias: finalEvidencePhotos
                            };
                            
                            setGeneratedActa(actaData);
                            setShowSuccessModal(true);
                            
                          } catch (e) {
-                           onNotify?.('error', 'Error al finalizar la entrega.');
+                           onNotify?.("error", "Error al finalizar la entrega.");
                          }
                        }}
                        disabled={isLoading || !signatureDataUrl || evidencePhotos.length === 0 || !giverSignature}
-                      className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 disabled:opacity-50"
-                    >
-                      {isLoading ? <RefreshCw className="animate-spin mx-auto" /> : <><ShieldCheck size={18} className="inline mr-2" /> Finalizar & Generar Acta</>}
-                    </button>
-                 </div>
+                       className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 disabled:opacity-50"
+                     >
+                       {isLoading ? <RefreshCw className="animate-spin mx-auto" /> : <><ShieldCheck size={18} className="inline mr-2" /> Finalizar & Generar Acta</>}
+                     </button>
+                  </div>
               </motion.div>
             )}
           </AnimatePresence>

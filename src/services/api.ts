@@ -371,10 +371,24 @@ export const saveEmployee = (profile: EmployeeProfile) =>
 export const getPendingDelivery = (document: string) => 
   publicFetch<any>(`/api/public/employees/${document}/pending`);
 
+export const savePendingDelivery = (document: string, items: Array<{ productId: number; quantity: number; talla: string }>) => 
+  publicFetch<any>(`/api/public/employees/${document}/pending`, {
+    method: 'POST',
+    body: JSON.stringify(items),
+  });
+
+export const products = () =>
+  publicFetch<any[]>('/api/public/products');
+
 export const createPendingDelivery = (payload: { employeeDocument: string; items: Array<{ productId: number; quantity: number }> }, session: AuthResponse | null, onLogout: () => void) => 
   authFetch<any>('/api/deliveries/pending', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+
+export const resendDeliveryEmail = (document: string, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<void>(`/api/deliveries/resend-email/${document}`, session, onLogout, {
+    method: 'POST',
   });
 
 export const listUsers = (session: AuthResponse | null, onLogout: () => void) =>

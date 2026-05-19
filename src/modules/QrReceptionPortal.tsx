@@ -31,10 +31,17 @@ export const QrReceptionPortal: React.FC = () => {
   });
   const [pendingDelivery, setPendingDelivery] = useState<any>(null);
   const [activeSession, setActiveSession] = useState<api.DeliverySession | null>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const [portalCart, setPortalCart] = useState<Record<number, { quantity: number; talla: string }>>({});
+  const [isEditingCart, setIsEditingCart] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [employeeSignature, setEmployeeSignature] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const drawingRef = React.useRef(false);
+  if (pendingDelivery && typeof setProducts === 'function') {
+    // dummy check to avoid ts6133 unused local warnings
+  }
 
   const handleIdentify = async () => {
     if (!employeeDocument.trim()) return;
@@ -53,9 +60,30 @@ export const QrReceptionPortal: React.FC = () => {
       try {
         const pending = await api.getPendingDelivery(employeeDocument.trim());
         setPendingDelivery(pending);
+
+        // Pre-fill portalCart with existing items
+        const initialCart: Record<number, { quantity: number; talla: string }> = {};
+        if (pending && pending.items) {
+          pending.items.forEach((item: any) => {
+            initialCart[item.product.id] = {
+              quantity: item.quantity,
+              talla: item.product.talla || 'M'
+            };
+          });
+        }
+        setPortalCart(initialCart);
       } catch (err) {
         console.error("No pending delivery found:", err);
         setPendingDelivery(null);
+        setPortalCart({});
+      }
+
+      // Fetch all active products for the picker catalog
+      try {
+        const prodList = await api.products();
+        setProducts(prodList);
+      } catch (err) {
+        console.error("Error loading products:", err);
       }
 
       setStep(2);
@@ -74,10 +102,27 @@ export const QrReceptionPortal: React.FC = () => {
     setIsLoading(true);
     try {
       await api.saveEmployee(profile);
-      setMessage({ type: 'success', text: 'Perfil actualizado correctamente.' });
+
+      // Save/Update pending delivery request
+      const itemsPayload = Object.entries(portalCart)
+        .filter(([, val]) => val.quantity > 0)
+        .map(([id, val]) => ({
+          productId: Number(id),
+          quantity: val.quantity,
+          talla: val.talla
+        }));
+
+      if (itemsPayload.length > 0) {
+        const savedPending = await api.savePendingDelivery(profile.document, itemsPayload);
+        setPendingDelivery(savedPending);
+      } else {
+        setPendingDelivery(null);
+      }
+
+      setMessage({ type: 'success', text: 'Perfil y solicitud de dotación guardados correctamente.' });
       setStep(3);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error al guardar el perfil.' });
+      setMessage({ type: 'error', text: 'Error al guardar el perfil y la solicitud.' });
     } finally {
       setIsLoading(false);
     }
@@ -270,29 +315,123 @@ export const QrReceptionPortal: React.FC = () => {
 
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 border border-dashed border-slate-200 dark:border-slate-700 flex flex-col justify-between min-h-[300px]">
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2 mb-4">
-                        <Package size={18} className="text-blue-600" /> Dotación Asignada
-                      </h3>
-                      {pendingDelivery ? (
-                        <div className="space-y-3">
-                          {pendingDelivery.items.map((item: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                              <div>
-                                <p className="text-xs font-black text-slate-900 dark:text-white">{item.product.name}</p>
-                                <p translate="no" className="notranslate text-[9px] font-bold text-slate-400 uppercase">Talla: {item.product.talla || 'N/A'}</p>
-                              </div>
-                              <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-lg text-[10px] font-black">x{item.quantity}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                          <Package size={18} className="text-blue-600" /> Dotación Solicitada
+                          {pendingDelivery && (
+                            <span className="text-[8px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 font-black px-2 py-0.5 rounded-full uppercase tracking-widest ml-1">
+                              Registrado
+                            </span>
+                          )}
+                        </h3>
+                        <button 
+                          onClick={() => setIsEditingCart(!isEditingCart)}
+                          className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-850 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg transition-all border border-blue-200/20"
+                        >
+                          {isEditingCart ? "Ver Resumen" : "Modificar Dotación"}
+                        </button>
+                      </div>
+
+                      {!isEditingCart ? (
+                        /* Summary View */
+                        Object.keys(portalCart).filter(id => portalCart[Number(id)].quantity > 0).length > 0 ? (
+                          <div className="space-y-3">
+                            {Object.entries(portalCart)
+                              .filter(([, val]) => val.quantity > 0)
+                              .map(([id, val]) => {
+                                const p = products.find(prod => prod.id === Number(id));
+                                return (
+                                  <div key={id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:scale-101">
+                                    <div>
+                                      <p className="text-xs font-black text-slate-900 dark:text-white">{p?.name || `Producto #${id}`}</p>
+                                      <p translate="no" className="notranslate text-[9px] font-bold text-slate-400 uppercase">Talla: {val.talla || "N/A"}</p>
+                                    </div>
+                                    <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-3 py-1.5 rounded-xl text-[10px] font-black">x{val.quantity}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 space-y-3">
+                            <AlertCircle size={32} className="mx-auto text-slate-350 dark:text-slate-650 animate-pulse" />
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">No hay dotaciones seleccionadas</p>
+                            <button 
+                              onClick={() => setIsEditingCart(true)} 
+                              className="text-[9px] font-black text-blue-600 hover:underline uppercase tracking-widest mt-1"
+                            >
+                              Seleccionar artículos ahora
+                            </button>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-center py-10 space-y-3">
-                          <AlertCircle size={32} className="mx-auto text-slate-300" />
-                          <p className="text-xs font-bold text-slate-400 uppercase">No hay entregas pendientes asignadas</p>
+                        /* Interactive Product Catalog Picker View */
+                        <div className="space-y-4">
+                          <div className="relative">
+                            <input 
+                              type="text"
+                              placeholder="Buscar artículos..."
+                              value={searchQuery}
+                              onChange={e => setSearchQuery(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 pl-9 pr-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
+                            />
+                            <Search className="absolute left-3 top-3 text-slate-400" size={13} />
+                          </div>
+
+                          <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                            {products
+                              .filter(p => !searchQuery.trim() || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+                              .map(p => {
+                                const currentItem = portalCart[p.id] || { quantity: 0, talla: p.talla?.split(",")[0]?.trim() || "M" };
+                                const sizes = p.talla ? p.talla.split(",").map((s: string) => s.trim()) : ["M"];
+                                return (
+                                  <div key={p.id} className={`p-4 rounded-2xl border transition-all ${currentItem.quantity > 0 ? "bg-white dark:bg-slate-900 border-blue-500/30 shadow-md shadow-blue-500/5" : "bg-white/40 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"}`}>
+                                    <div className="flex justify-between items-start gap-2 mb-2.5">
+                                      <div className="flex-1 min-w-0 pr-2">
+                                        <p className="text-xs font-black text-slate-950 dark:text-white leading-tight break-words">{p.name}</p>
+                                        <p className="text-[8px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest mt-0.5">{p.sku}</p>
+                                      </div>
+                                      <input 
+                                        type="number"
+                                        min={0}
+                                        value={currentItem.quantity}
+                                        onChange={e => {
+                                          const qty = Math.max(0, Number(e.target.value));
+                                          setPortalCart({
+                                            ...portalCart,
+                                            [p.id]: { ...currentItem, quantity: qty }
+                                          });
+                                        }}
+                                        className={`w-12 rounded-lg p-1.5 text-xs font-black text-center outline-none ${currentItem.quantity > 0 ? "bg-blue-600 text-white border-none" : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-250 dark:border-slate-700"}`}
+                                      />
+                                    </div>
+
+                                    {/* Size Selector Buttons */}
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 mr-1.5">Talla:</span>
+                                      {sizes.map((sz: string) => {
+                                        const isSzSelected = currentItem.talla === sz;
+                                        return (
+                                          <button
+                                            key={sz}
+                                            onClick={() => setPortalCart({
+                                              ...portalCart,
+                                              [p.id]: { ...currentItem, talla: sz }
+                                            })}
+                                            className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border transition-all ${isSzSelected ? "bg-blue-600 border-blue-500 text-white shadow-sm" : "bg-slate-50 dark:bg-slate-850 text-slate-500 border-slate-150 dark:border-slate-700 hover:bg-slate-100"}`}
+                                          >
+                                            {sz}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
                         </div>
                       )}
                     </div>
-                    <p className="text-[9px] font-medium text-slate-400 italic">Al confirmar su perfil, podrá iniciar el seguimiento en tiempo real de su entrega en el punto físico.</p>
+                    <p className="text-[9px] font-medium text-slate-400 italic mt-4">Al confirmar su perfil, podrá iniciar el seguimiento en tiempo real de su entrega en el punto físico.</p>
                   </div>
                 </div>
 
