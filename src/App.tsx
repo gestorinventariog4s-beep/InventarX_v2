@@ -30,38 +30,8 @@ import {
 
 import type { AuditLog } from './types';
 
-function App() {
-  // --- AUDITORÍA ---
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [auditFrom, setAuditFrom] = useState<string>(() => {
-    // Por defecto, 7 días atrás
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString();
-  });
-  const [auditTo, setAuditTo] = useState<string>(() => new Date().toISOString());
-  const [auditLoading, setAuditLoading] = useState(false);
-
-  const refreshAuditLogs = async () => {
-    if (!session) return;
-    setAuditLoading(true);
-    try {
-      const logs = await fetchAuditLogs(auditFrom, auditTo, session, handleLogout);
-      setAuditLogs(logs);
-    } catch (e) {
-      setAuditLogs([]);
-    } finally {
-      setAuditLoading(false);
-    }
-  };
-
-  // Cargar logs al entrar a auditoría o cambiar fechas
-  useEffect(() => {
-    if (activeModule === 'auditoria' && session) {
-      void refreshAuditLogs();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModule, auditFrom, auditTo, session]);
+// ...existing code...
+// (Elimina la declaración duplicada de function App() aquí)
 import { 
   AuthResponse, 
   ModuleId, 
