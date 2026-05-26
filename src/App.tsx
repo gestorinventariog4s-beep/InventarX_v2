@@ -27,6 +27,10 @@ import {
   updateInventoryProduct,
   fetchAuditLogs,
 } from './services/api';
+
+import type { AuditLog } from './types';
+
+function App() {
   // --- AUDITORÍA ---
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [auditFrom, setAuditFrom] = useState<string>(() => {
