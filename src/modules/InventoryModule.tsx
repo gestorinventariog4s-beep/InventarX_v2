@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchInventoryMovements } from '../services/inventoryMovements';
-import type { InventoryMovement, AuthResponse } from '../types';
+import type { InventoryMovement } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
