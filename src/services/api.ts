@@ -1,3 +1,14 @@
+// --- AUDITORÍA ---
+import type { AuditLog } from '../types';
+
+// Carga logs de auditoría entre dos fechas (ISO string)
+export const fetchAuditLogs = (
+  from: string,
+  to: string,
+  session: AuthResponse | null,
+  onLogout: () => void
+) =>
+  authFetch<AuditLog[]>(`/api/audit/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
 import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';

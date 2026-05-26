@@ -25,7 +25,39 @@ import {
   suspendUser,
   updateUser,
   updateInventoryProduct,
+  fetchAuditLogs,
 } from './services/api';
+  // --- AUDITORÍA ---
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditFrom, setAuditFrom] = useState<string>(() => {
+    // Por defecto, 7 días atrás
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString();
+  });
+  const [auditTo, setAuditTo] = useState<string>(() => new Date().toISOString());
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const refreshAuditLogs = async () => {
+    if (!session) return;
+    setAuditLoading(true);
+    try {
+      const logs = await fetchAuditLogs(auditFrom, auditTo, session, handleLogout);
+      setAuditLogs(logs);
+    } catch (e) {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // Cargar logs al entrar a auditoría o cambiar fechas
+  useEffect(() => {
+    if (activeModule === 'auditoria' && session) {
+      void refreshAuditLogs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModule, auditFrom, auditTo, session]);
 import { 
   AuthResponse, 
   ModuleId, 
@@ -493,6 +525,15 @@ function App() {
                     giverFullName: payload.giverFullName,
                     evidencePhotos: payload.evidencePhotos
                   });
+                  // Refrescar inventario y alertas tras la entrega
+                  if (session) {
+                    const [products, alerts] = await Promise.all([
+                      fetchInventoryProducts(session, handleLogout),
+                      fetchInventoryAlerts(session, handleLogout),
+                    ]);
+                    setInventoryProducts(products);
+                    setInventoryAlerts(alerts);
+                  }
                   showToast('success', 'Entrega confirmada y acta generada.');
                   return response;
                } catch (error) {
@@ -515,11 +556,13 @@ function App() {
         )}
         {activeModule === 'auditoria' && (
           <AuditModule 
-            auditLogs={[]} 
-            auditFrom="" setAuditFrom={() => {}} 
-            auditTo="" setAuditTo={() => {}} 
-            onRefresh={async () => {}} 
-            isLoading={false}
+            auditLogs={auditLogs}
+            auditFrom={auditFrom}
+            setAuditFrom={setAuditFrom}
+            auditTo={auditTo}
+            setAuditTo={setAuditTo}
+            onRefresh={refreshAuditLogs}
+            isLoading={auditLoading}
           />
         )}
         {activeModule === 'usuarios' && (
