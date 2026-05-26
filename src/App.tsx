@@ -66,7 +66,6 @@ const MOCK_PRODUCTS: Product[] = [
 
 const MOCK_USERS: AppUser[] = [
   { id: 1, username: 'admin', fullName: 'Administrador Sistema', role: 'ADMIN' },
-  { id: 2, username: 'op01', fullName: 'Juan Pérez', role: 'OPERADOR' },
 ];
 
 const EMPTY_NEW_USER_FORM = {

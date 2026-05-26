@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchInventoryMovements } from '../services/inventoryMovements';
+import type { InventoryMovement, AuthResponse } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -27,6 +29,21 @@ interface InventoryManagerProps {
   onBulkAddProducts: (products: ProductPayload[]) => Promise<void>;
   isLoading: boolean;
 }
+
+// Obtener sesión y función de logout desde window (hack simple para integración sin prop drilling)
+const getSession = () => {
+  try {
+    return JSON.parse(localStorage.getItem('gestion-dotacion-auth') || 'null');
+  } catch {
+    return null;
+  }
+};
+const getLogout = () => {
+  return () => {
+    localStorage.removeItem('gestion-dotacion-auth');
+    window.location.reload();
+  };
+};
 
 const ARTICLE_TYPES = [
   { id: 'Camisa', label: '👕 Camisa', sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
@@ -80,6 +97,18 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [articleTypeMenuOpen, setArticleTypeMenuOpen] = useState(false);
   const articleTypeMenuRef = useRef<HTMLDivElement | null>(null);
+  // Estado para movimientos
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+
+  // Cargar movimientos al montar
+  useEffect(() => {
+    const session = getSession();
+    const onLogout = getLogout();
+    if (!session) return;
+    fetchInventoryMovements(session, onLogout)
+      .then(setMovements)
+      .catch(() => setMovements([]));
+  }, []);
 
   useEffect(() => {
     if (!articleTypeMenuOpen) return;
@@ -282,6 +311,40 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
 
   return (
     <div className="space-y-6 pb-10">
+      {/* Historial de Movimientos */}
+      <div className="bg-white dark:bg-slate-900 border border-blue-100 dark:border-white/10 rounded-2xl p-6 mb-8 shadow">
+        <h2 className="text-xl font-black mb-4 text-blue-700 dark:text-blue-200">Historial de Movimientos</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs md:text-sm">
+            <thead>
+              <tr className="bg-blue-50 dark:bg-slate-800">
+                <th className="px-3 py-2">Fecha</th>
+                <th className="px-3 py-2">Producto</th>
+                <th className="px-3 py-2">Cantidad</th>
+                <th className="px-3 py-2">Tipo</th>
+                <th className="px-3 py-2">Responsable</th>
+                <th className="px-3 py-2">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {movements.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-4 text-slate-400">No hay movimientos registrados.</td></tr>
+              ) : (
+                movements.map(mov => (
+                  <tr key={mov.id} className="border-b border-blue-50 dark:border-slate-800">
+                    <td className="px-3 py-2 whitespace-nowrap">{new Date(mov.createdAt).toLocaleString()}</td>
+                    <td className="px-3 py-2">{mov.product?.name || '-'}</td>
+                    <td className="px-3 py-2">{mov.quantity}</td>
+                    <td className="px-3 py-2">{mov.movementType}</td>
+                    <td className="px-3 py-2">{mov.createdBy}</td>
+                    <td className="px-3 py-2">{mov.reason}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Header Section - COMPACT & BLUE CONTRAST */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
