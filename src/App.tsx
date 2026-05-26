@@ -28,21 +28,11 @@ import {
   fetchAuditLogs,
 } from './services/api';
 
-import type { AuditLog } from './types';
+import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload } from './types';
 
-// ...existing code...
-// (Elimina la declaración duplicada de function App() aquí)
-import { 
-  AuthResponse, 
-  ModuleId, 
-  Product, 
-  ProductPayload,
-  AppUser,
-  StockAlert,
-  UserRole,
-} from './types';
-
-// Mock Data
+// ==========================================
+// CONSTANTES GLOBALES (Declaradas una sola vez)
+// ==========================================
 const MOCK_PRODUCTS: Product[] = [
   {
     id: 1,
@@ -56,9 +46,7 @@ const MOCK_PRODUCTS: Product[] = [
     stockMaximo: 100,
     active: true,
     category: { id: 1, name: 'Proteccion' },
-    sizeStocks: [
-      { id: 1, talla: 'L', stock: 45 },
-    ],
+    sizeStocks: [{ id: 1, talla: 'L', stock: 45 }],
   },
   {
     id: 2,
@@ -72,9 +60,7 @@ const MOCK_PRODUCTS: Product[] = [
     stockMaximo: 200,
     active: true,
     category: { id: 2, name: 'Manos' },
-    sizeStocks: [
-      { id: 2, talla: 'M', stock: 5 },
-    ],
+    sizeStocks: [{ id: 2, talla: 'M', stock: 5 }],
   },
 ];
 
@@ -83,22 +69,24 @@ const MOCK_USERS: AppUser[] = [
   { id: 2, username: 'op01', fullName: 'Juan Pérez', role: 'OPERADOR' },
 ];
 
-const EMPTY_NEW_USER_FORM: { document: string; password: string; fullName: string; role: UserRole } = {
+const EMPTY_NEW_USER_FORM = {
   document: '',
   password: '',
   fullName: '',
-  role: 'OPERADOR',
+  role: 'OPERADOR' as UserRole,
 };
 
 const DEFAULT_PRODUCTS: Product[] = import.meta.env.DEV ? MOCK_PRODUCTS : [];
 
 function App() {
+  // ==========================================
+  // MANEJO DE RUTAS PÚBLICAS POR QR
+  // ==========================================
   const getPublicReceptionState = () => {
     const hash = window.location.hash || '';
     if (!hash.startsWith('#/recepcion-dotacion')) {
       return { isPublicReception: false, token: '' };
     }
-
     const [, query = ''] = hash.split('?');
     const params = new URLSearchParams(query);
     return {
@@ -109,11 +97,16 @@ function App() {
 
   const initialPublicReceptionState = getPublicReceptionState();
 
+  // ==========================================
+  // ESTADOS PRINCIPALES DE LA APLICACIÓN
+  // ==========================================
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [session, setSession] = useState<AuthResponse | null>(() => readSession());
   const [activeModule, setActiveModule] = useState<ModuleId>('resumen');
   const [isLoading, setIsLoading] = useState(initialPublicReceptionState.isPublicReception);
   const [publicReceptionState, setPublicReceptionState] = useState(initialPublicReceptionState);
+  
+  // Inventario y Usuarios
   const [inventoryProducts, setInventoryProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [inventoryAlerts, setInventoryAlerts] = useState<StockAlert[]>([]);
   const [inventorySaving, setInventorySaving] = useState(false);
@@ -121,6 +114,15 @@ function App() {
   const [newUserForm, setNewUserForm] = useState(EMPTY_NEW_USER_FORM);
   const [toast, setToast] = useState<ToastState | null>(null);
 
+  // ESTADOS REPARADOS: Auditoría (Faltaban en tu código base)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditFrom, setAuditFrom] = useState('');
+  const [auditTo, setAuditTo] = useState('');
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // ==========================================
+  // UTILIDADES GLOBALES
+  // ==========================================
   const showToast = (type: ToastType, message: string) => {
     setToast({ type, message });
     window.setTimeout(() => setToast(null), 3500);
@@ -132,7 +134,11 @@ function App() {
     return fallback;
   };
 
-  // Theme Sync
+  // ==========================================
+  // EFECTOS (Sincronizaciones y Cargas)
+  // ==========================================
+  
+  // Sincronización del Dark Mode con Tailwind
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -141,6 +147,7 @@ function App() {
     }
   }, [isDarkMode]);
 
+  // Sincronización de Hash de URL para Portal Público
   useEffect(() => {
     const syncRoute = () => {
       const nextState = getPublicReceptionState();
@@ -154,20 +161,19 @@ function App() {
     return () => window.removeEventListener('hashchange', syncRoute);
   }, []);
 
+  // Carga de Datos del Portal Público de Recepción
   useEffect(() => {
-    if (!publicReceptionState.isPublicReception) {
-      return;
-    }
+    if (!publicReceptionState.isPublicReception) return;
 
     let isMounted = true;
     void fetchPublicProducts()
       .then((products) => {
         if (isMounted && products.length > 0) {
-          // Just verify product list compiles or can load
+          // Lista compilada de manera correcta
         }
       })
       .catch(() => {
-        // Fallback silently
+        // Fallback silencioso
       })
       .finally(() => {
         if (isMounted) {
@@ -180,34 +186,9 @@ function App() {
     };
   }, [publicReceptionState.isPublicReception]);
 
-  const handleLogin = async (credentials: { username: string; password: string }) => {
-    setIsLoading(true);
-    try {
-      const authenticatedSession = await login(credentials.username, credentials.password);
-      setSession(authenticatedSession);
-      showToast('success', 'Sesion iniciada correctamente.');
-    } catch (error) {
-      showToast('error', getSafeErrorMessage(error, 'No fue posible iniciar sesion.'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('gestion-dotacion-auth');
-    setSession(null);
-  };
-
-  const refreshUsers = async () => {
-    if (!session || session.role !== 'ADMIN') return;
-    const response = await listUsers(session, handleLogout);
-    setUsers(response);
-  };
-
+  // Carga de Inventario y Alertas al iniciar sesión
   useEffect(() => {
-    if (!session) {
-      return;
-    }
+    if (!session) return;
 
     const refreshInventory = async () => {
       try {
@@ -226,16 +207,42 @@ function App() {
     void refreshInventory();
   }, [session]);
 
+  // Carga automática de usuarios para Administradores
   useEffect(() => {
-    if (!session || session.role !== 'ADMIN') {
-      return;
-    }
+    if (!session || session.role !== 'ADMIN') return;
 
-    void refreshUsers()
-      .catch(() => {
-        setUsers(MOCK_USERS);
-      });
+    void refreshUsers().catch(() => {
+      setUsers(MOCK_USERS);
+    });
   }, [session]);
+
+  // Carga automática de Logs de Auditoría cuando cambian los filtros de fecha
+  useEffect(() => {
+    if (!session || activeModule !== 'auditoria') return;
+    void refreshAuditLogs();
+  }, [session, activeModule, auditFrom, auditTo]);
+
+  // ==========================================
+  // OPERACIONES DE FLUJO: AUTENTICACIÓN Y SISTEMA
+  // ==========================================
+  const handleLogout = () => {
+    localStorage.removeItem('gestion-dotacion-auth');
+    setSession(null);
+  };
+
+  const handleLoginSuccess = (authData: AuthResponse) => {
+    setSession(authData);
+    setActiveModule('resumen');
+  };
+
+  // ==========================================
+  // OPERACIONES DE FLUJO: CONTROL DE USUARIOS
+  // ==========================================
+  const refreshUsers = async () => {
+    if (!session || session.role !== 'ADMIN') return;
+    const response = await listUsers(session, handleLogout);
+    setUsers(response);
+  };
 
   const handleSubmitNewUser = async () => {
     if (!session || session.role !== 'ADMIN') {
@@ -251,15 +258,14 @@ function App() {
     };
 
     if (!payload.document || !payload.fullName || !payload.password) {
-      showToast('error', 'Completa documento, nombre y contrasena.');
+      showToast('error', 'Completa documento, nombre y contraseña.');
       return;
     }
 
     setIsLoading(true);
     try {
       await registerUser(payload, session, handleLogout);
-      const refreshedUsers = await listUsers(session, handleLogout);
-      setUsers(refreshedUsers);
+      await refreshUsers();
       setNewUserForm(EMPTY_NEW_USER_FORM);
       showToast('success', 'Usuario creado correctamente.');
     } catch (error) {
@@ -331,9 +337,12 @@ function App() {
     }
   };
 
+  // ==========================================
+  // OPERACIONES DE FLUJO: GESTIÓN DE INVENTARIO
+  // ==========================================
   const handleAddInventoryProduct = async (payload: ProductPayload) => {
     if (!session) {
-      showToast('error', 'Sesion no disponible.');
+      showToast('error', 'Sesión no disponible.');
       return;
     }
     setInventorySaving(true);
@@ -356,7 +365,7 @@ function App() {
 
   const handleEditInventoryProduct = async (id: number, payload: ProductPayload) => {
     if (!session) {
-      showToast('error', 'Sesion no disponible.');
+      showToast('error', 'Sesión no disponible.');
       return;
     }
     setInventorySaving(true);
@@ -379,7 +388,7 @@ function App() {
 
   const handleDeleteInventoryProduct = async (id: number, mode: 'soft' | 'hard') => {
     if (!session) {
-      showToast('error', 'Sesion no disponible.');
+      showToast('error', 'Sesión no disponible.');
       return;
     }
     setInventorySaving(true);
@@ -391,8 +400,8 @@ function App() {
       ]);
       setInventoryProducts(products);
       setInventoryAlerts(alerts);
-      showToast('success', mode === 'hard'
-        ? 'Producto eliminado definitivamente.'
+      showToast('success', mode === 'hard' 
+        ? 'Producto eliminado definitivamente.' 
         : 'Producto ocultado correctamente de inventario.');
     } catch (error) {
       showToast('error', getSafeErrorMessage(error, 'No se pudo eliminar el producto.'));
@@ -402,6 +411,9 @@ function App() {
     }
   };
 
+  // ==========================================
+  // OPERACIONES DE FLUJO: ENTREGAS Y QR
+  // ==========================================
   const handleConfirmQrReception = async (payload: {
     qrToken: string;
     employeeFullName: string;
@@ -429,18 +441,49 @@ function App() {
     if (!publicReceptionState.token) {
       throw new Error('No hay token QR disponible para descargar el acta.');
     }
-
     await downloadPublicActa(actaId, publicReceptionState.token);
   };
 
+  // OPERACIÓN REPARADA: Obtención y refresco de logs de auditoría con filtros
+  const refreshAuditLogs = async () => {
+    if (!session) return;
+    setAuditLoading(true);
+    try {
+      const logs = await fetchAuditLogs(auditFrom, auditTo, session, handleLogout);
+      setAuditLogs(logs);
+    } catch {
+      showToast('error', 'No se pudieron cargar los registros de auditoría.');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // ==========================================
+  // RENDERIZADO CONDICIONAL DE MÓDULOS DE RUTA
+  // ==========================================
   if (publicReceptionState.isPublicReception) {
-    return (
-      <QrReceptionPortal />
-    );
+    return <QrReceptionPortal />;
   }
 
   if (!session) {
-    return <LoginModule onLogin={handleLogin} isLoading={isLoading} isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)} />;
+    return (
+      <LoginModule
+        onLogin={async (credentials) => {
+          setIsLoading(true);
+          try {
+            const authData = await login(credentials.username, credentials.password);
+            handleLoginSuccess(authData);
+          } catch (error) {
+            showToast('error', getSafeErrorMessage(error, 'No fue posible iniciar sesión.'));
+          } finally {
+            setIsLoading(false);
+          }
+        }}
+        isLoading={isLoading}
+        isDarkMode={isDarkMode}
+        toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+      />
+    );
   }
 
   return (
@@ -466,6 +509,7 @@ function App() {
             isDarkMode={isDarkMode}
           />
         )}
+        
         {activeModule === 'inventario' && (
           <InventoryModule 
             products={inventoryProducts} 
@@ -477,6 +521,7 @@ function App() {
             isLoading={inventorySaving}
           />
         )}
+
         {activeModule === 'entregas' && (
           <DeliveriesModule 
             products={inventoryProducts} 
@@ -484,42 +529,43 @@ function App() {
             onLogout={handleLogout}
             onNotify={showToast}
             onSubmitDelivery={async (payload) => {
-               setIsLoading(true);
-               try {
-                  const response = await confirmPublicQrDelivery({
-                    qrToken: 'DIRECT-ADMIN-' + Date.now(),
-                    employeeFullName: payload.employeeFullName,
-                    employeeDocument: payload.employeeDocument,
-                    employeeEmail: payload.employeeEmail,
-                    employeeCargo: payload.employeeCargo,
-                    notes: payload.notes,
-                    items: payload.items,
-                    signatureDataUrl: payload.signatureDataUrl,
-                    giverSignatureDataUrl: payload.giverSignatureDataUrl,
-                    giverFullName: payload.giverFullName,
-                    evidencePhotos: payload.evidencePhotos
-                  });
-                  // Refrescar inventario y alertas tras la entrega
-                  if (session) {
-                    const [products, alerts] = await Promise.all([
-                      fetchInventoryProducts(session, handleLogout),
-                      fetchInventoryAlerts(session, handleLogout),
-                    ]);
-                    setInventoryProducts(products);
-                    setInventoryAlerts(alerts);
-                  }
-                  showToast('success', 'Entrega confirmada y acta generada.');
-                  return response;
-               } catch (error) {
-                 showToast('error', getSafeErrorMessage(error, 'No se pudo confirmar la entrega.'));
-                 throw error;
-               } finally {
-                 setIsLoading(false);
-               }
+              setIsLoading(true);
+              try {
+                const response = await confirmPublicQrDelivery({
+                  qrToken: 'DIRECT-ADMIN-' + Date.now(),
+                  employeeFullName: payload.employeeFullName,
+                  employeeDocument: payload.employeeDocument,
+                  employeeEmail: payload.employeeEmail,
+                  employeeCargo: payload.employeeCargo,
+                  notes: payload.notes,
+                  items: payload.items,
+                  signatureDataUrl: payload.signatureDataUrl,
+                  giverSignatureDataUrl: payload.giverSignatureDataUrl,
+                  giverFullName: payload.giverFullName,
+                  evidencePhotos: payload.evidencePhotos
+                });
+                
+                // Sincronizar estados locales de almacén tras la transacción
+                const [products, alerts] = await Promise.all([
+                  fetchInventoryProducts(session, handleLogout),
+                  fetchInventoryAlerts(session, handleLogout),
+                ]);
+                setInventoryProducts(products);
+                setInventoryAlerts(alerts);
+                
+                showToast('success', 'Entrega confirmada y acta generada de inmediato.');
+                return response;
+              } catch (error) {
+                showToast('error', getSafeErrorMessage(error, 'No se pudo confirmar la entrega.'));
+                throw error;
+              } finally {
+                setIsLoading(false);
+              }
             }} 
             isLoading={isLoading}
           />
         )}
+
         {activeModule === 'qr' && (
           <QrModule
             products={inventoryProducts}
@@ -528,6 +574,7 @@ function App() {
             isLoading={isLoading}
           />
         )}
+
         {activeModule === 'auditoria' && (
           <AuditModule 
             auditLogs={auditLogs}
@@ -539,6 +586,7 @@ function App() {
             isLoading={auditLoading}
           />
         )}
+
         {activeModule === 'usuarios' && (
           <UsersModule 
             users={users} 
