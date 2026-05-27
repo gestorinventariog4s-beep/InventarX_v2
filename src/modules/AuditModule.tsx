@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchInventoryMovements } from '../services/inventoryMovements';
+import type { InventoryMovement } from '../types';
 import { 
   ShieldCheck, 
   Calendar, 
@@ -20,6 +22,20 @@ interface AuditModuleProps {
   isLoading: boolean;
 }
 
+const getSession = () => {
+  try {
+    return JSON.parse(localStorage.getItem('gestion-dotacion-auth') || 'null');
+  } catch {
+    return null;
+  }
+};
+const getLogout = () => {
+  return () => {
+    localStorage.removeItem('gestion-dotacion-auth');
+    window.location.reload();
+  };
+};
+
 export const AuditModule: React.FC<AuditModuleProps> = ({
   auditLogs,
   auditFrom,
@@ -29,6 +45,17 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
   onRefresh,
   isLoading
 }) => {
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+
+  useEffect(() => {
+    const session = getSession();
+    const onLogout = getLogout();
+    if (!session) return;
+    fetchInventoryMovements(session, onLogout)
+      .then(setMovements)
+      .catch(() => setMovements([]));
+  }, []);
+
   return (
     <div className="space-y-6 animate-fade pb-10">
       
@@ -144,6 +171,45 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
                     <td className="px-6 py-4 text-right">
                       <code className="text-[9px] font-black text-blue-300 dark:text-slate-600 bg-blue-50/50 dark:bg-white/5 px-2 py-0.5 rounded-lg">#{log.id}</code>
                     </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Historial de Movimientos */}
+      <div className="bg-white dark:bg-slate-900 border border-blue-100 dark:border-white/10 rounded-2xl p-6 shadow">
+        <h2 className="text-xl font-black mb-4 text-blue-700 dark:text-blue-200">Historial de Movimientos</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs md:text-sm">
+            <thead>
+              <tr className="bg-blue-50 dark:bg-slate-800 text-left">
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Fecha</th>
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Producto</th>
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Cantidad</th>
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Tipo</th>
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Responsable</th>
+                <th className="px-3 py-2 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {movements.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-4 text-slate-400 text-[9px] font-black uppercase tracking-widest">No hay movimientos registrados.</td></tr>
+              ) : (
+                movements.map(mov => (
+                  <tr key={mov.id} className="border-b border-blue-50 dark:border-slate-800 text-[11px] font-black text-blue-950 dark:text-slate-300">
+                    <td className="px-3 py-2 whitespace-nowrap">{new Date(mov.createdAt).toLocaleString()}</td>
+                    <td className="px-3 py-2">{mov.product?.name || '-'}</td>
+                    <td className="px-3 py-2">{mov.quantity} <span className="text-[8px] text-blue-400 uppercase">UN</span></td>
+                    <td className="px-3 py-2">
+                       <span className={`px-2 py-1 rounded-md text-[8px] uppercase tracking-widest ${mov.movementType === 'ENTRADA' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10'}`}>
+                         {mov.movementType}
+                       </span>
+                    </td>
+                    <td className="px-3 py-2">{mov.createdBy}</td>
+                    <td className="px-3 py-2 opacity-80">{mov.reason}</td>
                   </tr>
                 ))
               )}

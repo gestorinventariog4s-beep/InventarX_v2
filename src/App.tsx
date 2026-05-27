@@ -25,10 +25,12 @@ import {
   suspendUser,
   updateUser,
   updateInventoryProduct,
+  updateInventoryProduct,
   fetchAuditLogs,
 } from './services/api';
+import { fetchInventoryMovements } from './services/inventoryMovements';
 
-import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload } from './types';
+import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload, InventoryMovement, DashboardDemandResponse } from './types';
 
 // ==========================================
 // CONSTANTES GLOBALES (Declaradas una sola vez)
@@ -112,6 +114,9 @@ function App() {
   const [users, setUsers] = useState<AppUser[]>(MOCK_USERS);
   const [newUserForm, setNewUserForm] = useState(EMPTY_NEW_USER_FORM);
   const [toast, setToast] = useState<ToastState | null>(null);
+  
+  // Dashboard Metrics
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
 
   // ESTADOS REPARADOS: Auditoría (Faltaban en tu código base)
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -131,6 +136,38 @@ function App() {
     if (error instanceof Error && error.message.trim()) return error.message;
     if (typeof error === 'string' && error.trim()) return error;
     return fallback;
+  };
+
+  // ==========================================
+  // METRICAS DERIVADAS (Dashboard)
+  // ==========================================
+  const dashboardDemand = (): DashboardDemandResponse => {
+    const outbound = movements.filter(m => m.movementType === 'OUTBOUND' || m.movementType === 'SALIDA');
+    const productCounts = new Map<string, number>();
+    outbound.forEach(m => {
+      const name = m.product?.name || 'Desconocido';
+      productCounts.set(name, (productCounts.get(name) || 0) + m.quantity);
+    });
+    const topProducts = Array.from(productCounts.entries())
+      .map(([productName, quantity]) => ({ productName, quantity }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+      
+    return {
+      topProducts,
+      movementsCurrentMonth: outbound.length,
+    };
+  };
+
+  const dashboardRealTime = () => {
+    if (movements.length === 0) {
+      return [{ time: '00:00', value: 0 }];
+    }
+    const recent = [...movements].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-10);
+    return recent.map(m => ({
+      time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      value: m.quantity
+    }));
   };
 
   // ==========================================
@@ -191,15 +228,18 @@ function App() {
 
     const refreshInventory = async () => {
       try {
-        const [products, alerts] = await Promise.all([
+        const [products, alerts, fetchedMovements] = await Promise.all([
           fetchInventoryProducts(session, handleLogout),
           fetchInventoryAlerts(session, handleLogout),
+          fetchInventoryMovements(session, handleLogout).catch(() => []),
         ]);
         setInventoryProducts(products);
         setInventoryAlerts(alerts);
+        setMovements(fetchedMovements);
       } catch {
         setInventoryProducts(import.meta.env.DEV ? MOCK_PRODUCTS : []);
         setInventoryAlerts([]);
+        setMovements([]);
       }
     };
 
@@ -347,12 +387,14 @@ function App() {
     setInventorySaving(true);
     try {
       await createInventoryProduct(payload, session, handleLogout);
-      const [products, alerts] = await Promise.all([
+      const [products, alerts, fetchedMovements] = await Promise.all([
         fetchInventoryProducts(session, handleLogout),
         fetchInventoryAlerts(session, handleLogout),
+        fetchInventoryMovements(session, handleLogout).catch(() => []),
       ]);
       setInventoryProducts(products);
       setInventoryAlerts(alerts);
+      setMovements(fetchedMovements);
       showToast('success', 'Producto creado correctamente.');
     } catch (error) {
       showToast('error', getSafeErrorMessage(error, 'No se pudo crear el producto.'));
@@ -370,12 +412,14 @@ function App() {
     setInventorySaving(true);
     try {
       await updateInventoryProduct(id, payload, session, handleLogout);
-      const [products, alerts] = await Promise.all([
+      const [products, alerts, fetchedMovements] = await Promise.all([
         fetchInventoryProducts(session, handleLogout),
         fetchInventoryAlerts(session, handleLogout),
+        fetchInventoryMovements(session, handleLogout).catch(() => []),
       ]);
       setInventoryProducts(products);
       setInventoryAlerts(alerts);
+      setMovements(fetchedMovements);
       showToast('success', 'Producto actualizado correctamente.');
     } catch (error) {
       showToast('error', getSafeErrorMessage(error, 'No se pudo actualizar el producto.'));
@@ -393,12 +437,14 @@ function App() {
     setInventorySaving(true);
     try {
       await deleteInventoryProduct(id, mode, session, handleLogout);
-      const [products, alerts] = await Promise.all([
+      const [products, alerts, fetchedMovements] = await Promise.all([
         fetchInventoryProducts(session, handleLogout),
         fetchInventoryAlerts(session, handleLogout),
+        fetchInventoryMovements(session, handleLogout).catch(() => []),
       ]);
       setInventoryProducts(products);
       setInventoryAlerts(alerts);
+      setMovements(fetchedMovements);
       showToast('success', mode === 'hard' 
         ? 'Producto eliminado definitivamente.' 
         : 'Producto ocultado correctamente de inventario.');
@@ -503,8 +549,8 @@ function App() {
             alerts={inventoryAlerts} 
             returns={[]} 
             users={users} 
-            demand={null} 
-            realTimeData={[{ time: '10:00', value: 5 }, { time: '11:00', value: 12 }]}
+            demand={dashboardDemand()} 
+            realTimeData={dashboardRealTime()}
             isDarkMode={isDarkMode}
           />
         )}
@@ -545,12 +591,14 @@ function App() {
                 });
                 
                 // Sincronizar estados locales de almacén tras la transacción
-                const [products, alerts] = await Promise.all([
+                const [products, alerts, fetchedMovements] = await Promise.all([
                   fetchInventoryProducts(session, handleLogout),
                   fetchInventoryAlerts(session, handleLogout),
+                  fetchInventoryMovements(session, handleLogout).catch(() => []),
                 ]);
                 setInventoryProducts(products);
                 setInventoryAlerts(alerts);
+                setMovements(fetchedMovements);
                 
                 showToast('success', 'Entrega confirmada y acta generada de inmediato.');
                 return response;

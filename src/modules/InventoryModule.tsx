@@ -97,18 +97,6 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [articleTypeMenuOpen, setArticleTypeMenuOpen] = useState(false);
   const articleTypeMenuRef = useRef<HTMLDivElement | null>(null);
-  // Estado para movimientos
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
-
-  // Cargar movimientos al montar
-  useEffect(() => {
-    const session = getSession();
-    const onLogout = getLogout();
-    if (!session) return;
-    fetchInventoryMovements(session, onLogout)
-      .then(setMovements)
-      .catch(() => setMovements([]));
-  }, []);
 
   useEffect(() => {
     if (!articleTypeMenuOpen) return;
@@ -311,123 +299,88 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Historial de Movimientos */}
-      <div className="bg-white dark:bg-slate-900 border border-blue-100 dark:border-white/10 rounded-2xl p-6 mb-8 shadow">
-        <h2 className="text-xl font-black mb-4 text-blue-700 dark:text-blue-200">Historial de Movimientos</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs md:text-sm">
-            <thead>
-              <tr className="bg-blue-50 dark:bg-slate-800">
-                <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">Producto</th>
-                <th className="px-3 py-2">Cantidad</th>
-                <th className="px-3 py-2">Tipo</th>
-                <th className="px-3 py-2">Responsable</th>
-                <th className="px-3 py-2">Motivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movements.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-4 text-slate-400">No hay movimientos registrados.</td></tr>
-              ) : (
-                movements.map(mov => (
-                  <tr key={mov.id} className="border-b border-blue-50 dark:border-slate-800">
-                    <td className="px-3 py-2 whitespace-nowrap">{new Date(mov.createdAt).toLocaleString()}</td>
-                    <td className="px-3 py-2">{mov.product?.name || '-'}</td>
-                    <td className="px-3 py-2">{mov.quantity}</td>
-                    <td className="px-3 py-2">{mov.movementType}</td>
-                    <td className="px-3 py-2">{mov.createdBy}</td>
-                    <td className="px-3 py-2">{mov.reason}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Header Section - COMPACT & BLUE CONTRAST */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* Banner de Inventario - PREMIUM GRADIENT */}
-        <div className="lg:col-span-8 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 dark:from-blue-900 dark:to-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden flex flex-col justify-between min-h-[400px] shadow-[0_30px_60px_-15px_rgba(37,99,235,0.3)] border border-white/10">
+        <div className="lg:col-span-8 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 dark:from-blue-900 dark:to-slate-900 rounded-[3rem] p-8 lg:p-10 text-white relative overflow-hidden flex flex-col justify-between min-h-[300px] lg:min-h-[400px] shadow-[0_30px_60px_-15px_rgba(37,99,235,0.3)] border border-white/10">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none" />
           <div className="absolute -top-12 -right-12 opacity-10 pointer-events-none text-white rotate-12">
-            <Package size={300} strokeWidth={1} />
+            <Package className="w-48 h-48 lg:w-72 lg:h-72" strokeWidth={1} />
           </div>
 
-          <div className="relative z-10 space-y-6">
-            <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-5 py-2 rounded-2xl">
-              <div className="w-2 h-2 rounded-full bg-blue-300 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Operaciones de Activos</span>
+          <div className="relative z-10 space-y-4 lg:space-y-6">
+            <div className="inline-flex items-center gap-2 lg:gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-4 lg:px-5 py-1.5 lg:py-2 rounded-2xl w-fit">
+              <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-blue-300 animate-pulse" />
+              <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-[0.3em]">Operaciones de Activos</span>
             </div>
 
-            <h1 className="text-6xl font-black tracking-tighter leading-tight">
+            <h1 className="text-4xl lg:text-6xl font-black tracking-tighter leading-tight">
               Control de <br /> <span className="text-blue-200">Inventario</span>
             </h1>
 
-            <p className="text-blue-100/70 max-w-lg text-base font-medium leading-relaxed">
+            <p className="text-blue-100/70 max-w-lg text-xs lg:text-base font-medium leading-relaxed">
               Plataforma de alta precisión para el seguimiento de dotación industrial y activos corporativos con analítica de stock en tiempo real.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-4 relative z-10 mt-8">
+          <div className="flex flex-wrap gap-3 lg:gap-4 relative z-10 mt-6 lg:mt-8">
             <button
               onClick={openCreateEditor}
               disabled={isLoading}
-              className="bg-white text-blue-700 hover:bg-blue-50 px-10 py-5 rounded-[1.8rem] font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all shadow-xl shadow-blue-900/20 active:scale-95 group"
+              className="bg-white text-blue-700 hover:bg-blue-50 px-6 py-4 lg:px-10 lg:py-5 rounded-[1.5rem] lg:rounded-[1.8rem] font-black text-[9px] lg:text-[11px] uppercase tracking-widest flex items-center gap-2 lg:gap-3 transition-all shadow-xl shadow-blue-900/20 active:scale-95 group"
             >
-              <Plus size={18} strokeWidth={3} className="group-hover:rotate-90 transition-transform" /> Nuevo Producto
+              <Plus className="w-4 h-4 lg:w-5 lg:h-5 group-hover:rotate-90 transition-transform" strokeWidth={3} /> Nuevo Producto
             </button>
             <button
               onClick={() => void onBulkAddProducts([])}
               disabled={isLoading}
-              className="bg-blue-800/30 hover:bg-blue-800/50 backdrop-blur-md text-white px-10 py-5 rounded-[1.8rem] font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all active:scale-95 border border-white/10"
+              className="bg-blue-800/30 hover:bg-blue-800/50 backdrop-blur-md text-white px-6 py-4 lg:px-10 lg:py-5 rounded-[1.5rem] lg:rounded-[1.8rem] font-black text-[9px] lg:text-[11px] uppercase tracking-widest flex items-center gap-2 lg:gap-3 transition-all active:scale-95 border border-white/10"
             >
-              <FileSpreadsheet size={18} /> Carga Masiva
+              <FileSpreadsheet className="w-4 h-4 lg:w-5 lg:h-5" /> Carga Masiva
             </button>
           </div>
         </div>
 
         {/* Métricas de Stock (Isla Derecha) */}
-        <div className="lg:col-span-4 grid grid-rows-2 gap-4">
+        <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-4 lg:gap-6">
           <button
             type="button"
             onClick={() => setQuickView('all')}
-            className={`text-left rounded-[2rem] p-6 border transition-all ${
+            className={`text-left rounded-[1.5rem] lg:rounded-[2rem] p-5 lg:p-6 border transition-all flex flex-col justify-center ${
               quickView === 'all'
                 ? 'bg-blue-600 text-white border-blue-600 shadow-[0_20px_40px_-20px_rgba(37,99,235,0.6)]'
                 : 'bg-white dark:bg-white/5 border-blue-100 dark:border-white/10 text-blue-900 dark:text-white'
             }`}
           >
-            <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${quickView === 'all' ? 'text-blue-100' : 'text-blue-500 dark:text-slate-400'}`}>
+            <p className={`text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] ${quickView === 'all' ? 'text-blue-100' : 'text-blue-500 dark:text-slate-400'}`}>
               Existencias Totales
             </p>
-            <h3 className="text-4xl font-black leading-none tracking-tighter mt-2">
+            <h3 className="text-3xl lg:text-4xl font-black leading-none tracking-tighter mt-2">
               {products.reduce((acc, p) => acc + (p.stock || 0), 0).toLocaleString()}
             </h3>
-            <div className={`inline-flex items-center gap-2 mt-4 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${quickView === 'all' ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-              <Clock size={12} /> Vista General
+            <div className={`inline-flex items-center gap-1.5 mt-3 lg:mt-4 text-[7px] lg:text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg w-fit ${quickView === 'all' ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+              <Clock className="w-3 h-3 lg:w-4 lg:h-4" /> Vista General
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => setQuickView('critical')}
-            className={`text-left rounded-[2rem] p-6 border transition-all ${
+            className={`text-left rounded-[1.5rem] lg:rounded-[2rem] p-5 lg:p-6 border transition-all flex flex-col justify-center ${
               quickView === 'critical'
                 ? 'bg-rose-600 text-white border-rose-600 shadow-[0_20px_40px_-20px_rgba(225,29,72,0.6)]'
                 : 'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20 text-rose-700 dark:text-rose-300'
             }`}
           >
-            <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${quickView === 'critical' ? 'text-rose-100' : 'text-rose-600'}`}>
+            <p className={`text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] ${quickView === 'critical' ? 'text-rose-100' : 'text-rose-600'}`}>
               Alertas Críticas
             </p>
-            <h3 className="text-4xl font-black leading-none tracking-tighter mt-2">
+            <h3 className="text-3xl lg:text-4xl font-black leading-none tracking-tighter mt-2">
               {alerts.length || products.filter(p => p.stock <= p.stockMinimo).length}
             </h3>
-            <div className={`inline-flex items-center gap-2 mt-4 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${quickView === 'critical' ? 'bg-white/15 text-white' : 'bg-rose-100/70 text-rose-600 border border-rose-200/70'}`}>
-              <AlertTriangle size={12} /> Solo críticos
+            <div className={`inline-flex items-center gap-1.5 mt-3 lg:mt-4 text-[7px] lg:text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg w-fit ${quickView === 'critical' ? 'bg-white/15 text-white' : 'bg-rose-100/70 text-rose-600 border border-rose-200/70'}`}>
+              <AlertTriangle className="w-3 h-3 lg:w-4 lg:h-4" /> Solo críticos
             </div>
           </button>
         </div>

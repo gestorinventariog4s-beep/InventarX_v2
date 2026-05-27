@@ -35,15 +35,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className={`w-full max-w-[1700px] flex justify-between items-center border rounded-[3rem] p-4 px-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] transition-all duration-700 backdrop-blur-3xl ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/70 border-white/40'}`}>
   
           {/* Branding Area */}
-          <div className="flex items-center gap-5 min-w-[200px]">
+          <div className="flex items-center gap-3 lg:gap-5 min-w-[150px] lg:min-w-[200px]">
             <motion.div
               whileHover={{ rotate: -10, scale: 1.1, filter: 'brightness(1.2)' }}
-              className="bg-gradient-to-br from-blue-500 to-blue-700 w-12 h-12 rounded-[1.2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-500/40 cursor-pointer"
+              className="bg-gradient-to-br from-blue-500 to-blue-700 w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-500/40 cursor-pointer"
             >
-              <Package size={22} strokeWidth={2.5} />
+              <Package className="w-5 h-5 lg:w-6 lg:h-6" strokeWidth={2.5} />
             </motion.div>
-            <div className="hidden xl:block">
-              <h2 className={`text-2xl font-black tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
+            <div>
+              <h2 className={`text-xl lg:text-2xl font-black tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
                 INVETAR<span className="text-blue-600">X</span>
               </h2>
             </div>
