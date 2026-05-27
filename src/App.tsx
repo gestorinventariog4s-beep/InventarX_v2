@@ -486,7 +486,7 @@ function App() {
   }
 
   return (
-    <div className={`app-shell min-h-screen transition-all duration-500 ${isDarkMode ? 'dark bg-slate-950 text-slate-200' : 'bg-white text-blue-950'}`}>
+    <div className={`app-shell min-h-screen transition-all duration-500 max-lg:pb-24 ${isDarkMode ? 'dark bg-slate-950 text-slate-200' : 'bg-white text-blue-950'}`}>
       <Header 
         activeModule={activeModule} 
         setActiveModule={setActiveModule} 
@@ -496,7 +496,7 @@ function App() {
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
-      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-12">
+      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-12 max-lg:pt-6">
         {activeModule === 'resumen' && (
           <DashboardModule 
             products={inventoryProducts} 

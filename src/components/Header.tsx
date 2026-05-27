@@ -49,23 +49,23 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Dynamic Navigation Pill */}
-        <nav className={`hidden lg:flex relative p-1.5 rounded-[2.5rem] border transition-all ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-100/40 border-slate-200/50'}`}>
+        <nav className={`flex relative p-1.5 rounded-[2.5rem] border transition-all max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:w-full max-lg:rounded-none max-lg:rounded-t-[2rem] max-lg:justify-around max-lg:px-2 max-lg:pb-8 max-lg:pt-3 max-lg:z-[100] max-lg:border-x-0 max-lg:border-b-0 ${isDarkMode ? 'bg-black/20 border-white/5 max-lg:bg-slate-950/90 max-lg:backdrop-blur-xl max-lg:border-white/10' : 'bg-slate-100/40 border-slate-200/50 max-lg:bg-white/90 max-lg:backdrop-blur-xl max-lg:border-slate-200 max-lg:shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveModule(item.id)}
-              className="relative flex items-center gap-2.5 px-6 py-3.5 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group overflow-hidden"
+              className="relative flex items-center gap-2.5 px-6 py-3.5 max-lg:px-3 max-lg:py-2 max-lg:flex-col max-lg:gap-1.5 rounded-[2rem] max-lg:rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group overflow-hidden"
             >
               {activeModule === item.id && (
                 <motion.div
                   layoutId="activePill"
-                  className="absolute inset-0 bg-blue-600 shadow-xl shadow-blue-600/40 z-0"
+                  className="absolute inset-0 bg-blue-600 shadow-xl shadow-blue-600/40 z-0 max-lg:rounded-xl"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                 />
               )}
-              <span className={`relative z-10 flex items-center gap-2.5 transition-colors duration-300 ${activeModule === item.id ? 'text-white' : (isDarkMode ? 'text-slate-500 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-950')}`}>
-                <item.icon size={16} strokeWidth={2.5} />
-                <span className="opacity-90">{item.label}</span>
+              <span className={`relative z-10 flex items-center gap-2.5 max-lg:flex-col max-lg:gap-1 transition-colors duration-300 ${activeModule === item.id ? 'text-white' : (isDarkMode ? 'text-slate-500 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-950')}`}>
+                <item.icon className="w-4 h-4 max-lg:w-5 max-lg:h-5" strokeWidth={2.5} />
+                <span className="opacity-90 max-lg:text-[8px] max-lg:tracking-widest max-lg:hidden sm:max-lg:block">{item.label}</span>
               </span>
             </button>
           ))}
