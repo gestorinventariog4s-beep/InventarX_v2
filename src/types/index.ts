@@ -57,7 +57,7 @@ export interface ProductPayload {
 export interface InventoryMovement {
   id: number;
   quantity: number;
-  movementType: 'INBOUND' | 'OUTBOUND' | 'RETURN_ADJUSTMENT';
+  movementType: 'INBOUND' | 'OUTBOUND' | 'RETURN_ADJUSTMENT' | 'ENTRADA' | 'SALIDA' | 'AJUSTE';
   reason: string;
   referenceId?: string;
   createdBy: string;
