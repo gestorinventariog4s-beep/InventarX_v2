@@ -25,7 +25,6 @@ import {
   suspendUser,
   updateUser,
   updateInventoryProduct,
-  updateInventoryProduct,
   fetchAuditLogs,
 } from './services/api';
 import { fetchInventoryMovements } from './services/inventoryMovements';
@@ -142,7 +141,7 @@ function App() {
   // METRICAS DERIVADAS (Dashboard)
   // ==========================================
   const dashboardDemand = (): DashboardDemandResponse => {
-    const outbound = movements.filter(m => m.movementType === 'OUTBOUND' || m.movementType === 'SALIDA');
+    const outbound = movements.filter(m => m.movementType === 'OUTBOUND');
     const productCounts = new Map<string, number>();
     outbound.forEach(m => {
       const name = m.product?.name || 'Desconocido';

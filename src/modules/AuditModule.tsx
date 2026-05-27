@@ -204,7 +204,7 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
                     <td className="px-3 py-2">{mov.product?.name || '-'}</td>
                     <td className="px-3 py-2">{mov.quantity} <span className="text-[8px] text-blue-400 uppercase">UN</span></td>
                     <td className="px-3 py-2">
-                       <span className={`px-2 py-1 rounded-md text-[8px] uppercase tracking-widest ${mov.movementType === 'ENTRADA' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10'}`}>
+                       <span className={`px-2 py-1 rounded-md text-[8px] uppercase tracking-widest ${mov.movementType === 'INBOUND' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10'}`}>
                          {mov.movementType}
                        </span>
                     </td>

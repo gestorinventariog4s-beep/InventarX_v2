@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchInventoryMovements } from '../services/inventoryMovements';
-import type { InventoryMovement } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -29,21 +27,6 @@ interface InventoryManagerProps {
   onBulkAddProducts: (products: ProductPayload[]) => Promise<void>;
   isLoading: boolean;
 }
-
-// Obtener sesión y función de logout desde window (hack simple para integración sin prop drilling)
-const getSession = () => {
-  try {
-    return JSON.parse(localStorage.getItem('gestion-dotacion-auth') || 'null');
-  } catch {
-    return null;
-  }
-};
-const getLogout = () => {
-  return () => {
-    localStorage.removeItem('gestion-dotacion-auth');
-    window.location.reload();
-  };
-};
 
 const ARTICLE_TYPES = [
   { id: 'Camisa', label: '👕 Camisa', sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
