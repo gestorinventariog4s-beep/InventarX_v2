@@ -39,17 +39,17 @@ interface StatIslandProps {
 
 const StatIsland = ({ title, value, icon: Icon, color, delay, isDarkMode }: StatIslandProps) => (
   <motion.div 
-    className={`rounded-3xl p-5 shadow-sm flex items-center gap-4 flex-1 min-w-[200px] border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-blue-100'}`}
+    className={`rounded-3xl p-4 lg:p-5 shadow-sm flex items-center gap-3 lg:gap-4 flex-1 min-w-[140px] lg:min-w-[200px] border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-blue-100'}`}
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
   >
-    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: `${color}15`, color: color }}>
-      <Icon size={24} strokeWidth={2.5} />
+    <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: `${color}15`, color: color }}>
+      <Icon className="w-5 h-5 lg:w-6 lg:h-6" strokeWidth={2.5} />
     </div>
     <div className="min-w-0">
-      <h4 className={`text-2xl font-black leading-tight truncate ${isDarkMode ? 'text-white' : 'text-blue-900'}`}>{value}</h4>
-      <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isDarkMode ? 'text-slate-400' : 'text-blue-500'}`}>{title}</p>
+      <h4 className={`text-xl lg:text-2xl font-black leading-tight truncate ${isDarkMode ? 'text-white' : 'text-blue-900'}`}>{value}</h4>
+      <p className={`text-[8px] lg:text-[9px] font-black uppercase tracking-widest truncate ${isDarkMode ? 'text-slate-400' : 'text-blue-500'}`}>{title}</p>
     </div>
   </motion.div>
 );
@@ -100,25 +100,25 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
 
         {/* Resumen Táctico (Isla Derecha) */}
-        <div className="lg:col-span-4 grid grid-rows-2 gap-6">
-          <div className="bg-white dark:bg-white/5 border border-blue-100 dark:border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center shadow-sm relative overflow-hidden group">
-            <div className="absolute -right-6 -top-6 text-blue-600 opacity-5 group-hover:scale-110 transition-transform"><Package size={150} /></div>
-            <p className="text-[9px] font-black text-blue-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Existencias Totales</p>
-            <h3 className="text-5xl font-black text-blue-900 dark:text-white leading-none tracking-tighter">
+        <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-4 lg:gap-6">
+          <div className="bg-white dark:bg-white/5 border border-blue-100 dark:border-white/10 rounded-[1.5rem] lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col justify-center shadow-sm relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 lg:-right-6 lg:-top-6 text-blue-600 opacity-5 group-hover:scale-110 transition-transform"><Package className="w-24 h-24 lg:w-36 lg:h-36" /></div>
+            <p className="text-[8px] lg:text-[9px] font-black text-blue-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Existencias Totales</p>
+            <h3 className="text-3xl lg:text-5xl font-black text-blue-900 dark:text-white leading-none tracking-tighter">
               {products.reduce((acc, p) => acc + (p.stock || 0), 0).toLocaleString()}
             </h3>
-            <div className="flex items-center gap-2 mt-4 text-emerald-600 font-black text-[9px] uppercase tracking-widest bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded-lg w-fit border border-emerald-100 dark:border-emerald-500/20">
-               <TrendingUp size={12} /> +12% VS MES ANTERIOR
+            <div className="flex items-center gap-1.5 mt-3 lg:mt-4 text-emerald-600 font-black text-[7px] lg:text-[9px] uppercase tracking-widest bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1.5 rounded-lg w-fit border border-emerald-100 dark:border-emerald-500/20">
+               <TrendingUp size={10} className="lg:w-3 lg:h-3" /> <span className="truncate max-w-[80px] lg:max-w-none">+12% VS MES ANT</span>
             </div>
           </div>
           
-          <div className="bg-blue-600 rounded-[2.5rem] p-8 flex flex-col justify-center shadow-lg shadow-blue-600/20 text-white relative overflow-hidden">
-             <div className="absolute -right-6 -bottom-6 text-white opacity-10"><Activity size={150} /></div>
-             <p className="text-[9px] font-black uppercase tracking-[0.2em] mb-2 opacity-70">Movimientos Hoy</p>
-             <h3 className="text-5xl font-black leading-none tracking-tighter">
+          <div className="bg-blue-600 rounded-[1.5rem] lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col justify-center shadow-lg shadow-blue-600/20 text-white relative overflow-hidden">
+             <div className="absolute -right-4 -bottom-4 lg:-right-6 lg:-bottom-6 text-white opacity-10"><Activity className="w-24 h-24 lg:w-36 lg:h-36" /></div>
+             <p className="text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] mb-2 opacity-70">Movimientos Hoy</p>
+             <h3 className="text-3xl lg:text-5xl font-black leading-none tracking-tighter">
                {realTimeData.length}
              </h3>
-             <p className="text-[10px] font-bold mt-2 opacity-80 uppercase tracking-widest">Sincro Cloud OK</p>
+             <p className="text-[8px] lg:text-[10px] font-bold mt-2 opacity-80 uppercase tracking-widest truncate">Sincro Cloud OK</p>
           </div>
         </div>
       </div>
