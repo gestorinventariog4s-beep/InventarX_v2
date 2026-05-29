@@ -179,6 +179,11 @@ export interface UserProfile {
   estadoActual: 'DISPONIBLE' | 'EN_RUTA' | 'ALMUERZO' | 'AUSENTE';
   creadoEn: string;
   actualizadoEn: string;
+  usuario?: {
+    correo: string;
+    rol: UserRole;
+    sedeId: string | null;
+  };
 }
 
 export interface UpdatePerfilPayload {

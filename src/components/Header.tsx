@@ -11,6 +11,7 @@ interface HeaderProps {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   onOpenProfile?: () => void;
+  onOpenTeam?: () => void;
   userProfile?: UserProfile | null;
 }
 
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   toggleDarkMode,
   onOpenProfile,
+  onOpenTeam,
   userProfile
 }) => {
   const navItems = [
@@ -85,6 +87,16 @@ export const Header: React.FC<HeaderProps> = ({
               className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all border ${isDarkMode ? 'bg-white/5 border-white/10 text-amber-400 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-950 hover:bg-slate-50 shadow-sm'}`}
             >
               {isDarkMode ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
+            </motion.button>
+  
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onOpenTeam}
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all border ${isDarkMode ? 'bg-white/5 border-white/10 text-blue-400 hover:bg-white/10' : 'bg-white border-slate-200 text-blue-600 hover:bg-slate-50 shadow-sm'}`}
+              title="Directorio de Equipo"
+            >
+              <Users size={20} strokeWidth={2.5} />
             </motion.button>
   
             <motion.button 

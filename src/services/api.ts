@@ -518,8 +518,13 @@ export const updateEstado = (estado: 'DISPONIBLE' | 'EN_RUTA' | 'ALMUERZO' | 'AU
   const session = readSession();
   return authFetch<UserProfile>('/api/v1/perfiles/estado', session, profileLogout, {
     method: 'PATCH',
-    body: JSON.stringify({ estadoActual: estado }),
+    body: JSON.stringify({ estado: estado }), // Corregido: el backend espera 'estado'
   });
+};
+
+export const fetchEquipo = () => {
+  const session = readSession();
+  return authFetch<UserProfile[]>('/api/v1/perfiles/equipo', session, profileLogout);
 };
 
 export const uploadAvatar = (base64Image: string) => {

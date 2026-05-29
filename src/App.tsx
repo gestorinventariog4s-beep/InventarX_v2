@@ -9,6 +9,7 @@ import { AuditModule } from './modules/AuditModule';
 import { UsersModule } from './modules/UsersModule';
 import { LoginModule } from './modules/LoginModule';
 import { ProfilePanel } from './components/ProfilePanel';
+import { TeamDirectory } from './components/TeamDirectory';
 import { BottomToast, type ToastState, type ToastType } from './components/BottomToast';
 import {
   confirmPublicQrDelivery,
@@ -545,6 +546,7 @@ function App() {
 
   const [authError, setAuthError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTeamOpen, setIsTeamOpen] = useState(false);
 
   if (!session) {
     return (
@@ -585,6 +587,7 @@ function App() {
         isDarkMode={isDarkMode}
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenTeam={() => setIsTeamOpen(true)}
       />
 
       <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-24 max-lg:pt-20 pb-10">
@@ -700,6 +703,12 @@ function App() {
         session={session} 
         showToast={showToast} 
         onProfileUpdate={setUserProfile}
+      />
+
+      <TeamDirectory 
+        isOpen={isTeamOpen} 
+        onClose={() => setIsTeamOpen(false)} 
+        isDarkMode={isDarkMode} 
       />
 
       <BottomToast toast={toast} />
