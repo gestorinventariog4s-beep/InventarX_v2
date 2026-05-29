@@ -113,7 +113,7 @@ export interface AuditLog {
 }
 
 export interface AppUser {
-  id: number;
+  id: number | string;
   username: string;
   document?: string;
   fullName: string;

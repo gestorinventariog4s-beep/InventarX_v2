@@ -348,7 +348,7 @@ function App() {
     }
   };
 
-  const handleUpdateUser = async (id: number, payload: { document: string; fullName: string; password?: string; role: UserRole }) => {
+  const handleUpdateUser = async (id: number | string, payload: { document: string; fullName: string; password?: string; role: UserRole }) => {
     if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede editar usuarios.');
       return;
@@ -372,7 +372,7 @@ function App() {
     }
   };
 
-  const handleSuspendUser = async (id: number) => {
+  const handleSuspendUser = async (id: number | string) => {
     if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede suspender usuarios.');
       return;
@@ -391,7 +391,7 @@ function App() {
     }
   };
 
-  const handleDeleteUser = async (id: number) => {
+  const handleDeleteUser = async (id: number | string) => {
     if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede eliminar usuarios.');
       return;

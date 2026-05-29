@@ -473,7 +473,7 @@ export const resendDeliveryEmail = (document: string, session: AuthResponse | nu
   });
 
 export const listUsers = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<AppUser[]>('/api/v1/admin/users', session, onLogout);
+  authFetch<AppUser[]>('/api/v1/usuarios', session, onLogout);
 
 export const registerUser = (
   payload: { document: string; fullName: string; password: string; role: UserRole },
@@ -486,23 +486,23 @@ export const registerUser = (
   });
 
 export const updateUser = (
-  id: number,
+  id: string | number,
   payload: UpdateUserPayload,
   session: AuthResponse | null,
   onLogout: () => void,
 ) =>
-  authFetch<AppUser>(`/api/admin/users/${id}`, session, onLogout, {
+  authFetch<AppUser>(`/api/v1/usuarios/${id}`, session, onLogout, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 
-export const suspendUser = (id: number, session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<AppUser>(`/api/admin/users/${id}/suspend`, session, onLogout, {
-    method: 'PATCH',
+export const suspendUser = (id: string | number, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<AppUser>(`/api/v1/usuarios/${id}/suspender`, session, onLogout, {
+    method: 'POST',
   });
 
-export const deleteUser = (id: number, session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<void>(`/api/admin/users/${id}`, session, onLogout, {
+export const deleteUser = (id: string | number, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<void>(`/api/v1/usuarios/${id}`, session, onLogout, {
     method: 'DELETE',
   });
 

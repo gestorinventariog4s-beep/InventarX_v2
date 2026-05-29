@@ -380,10 +380,23 @@ export const QrReceptionPortal: React.FC = () => {
                           <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
                             {products
                               .filter(p => !searchQuery.trim() || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
-                              .map(p => {
-                                const currentItem = portalCart[p.id] || { quantity: 0, talla: p.talla?.split(",")[0]?.trim() || "M" };
-                                const sizes = p.talla ? p.talla.split(",").map((s: string) => s.trim()) : ["M"];
-                                return (
+                                .map(p => {
+                                  let sizes = ["M"];
+                                  if (Array.isArray(p.tallas) && p.tallas.length > 0) {
+                                    sizes = p.tallas;
+                                  } else if (p.tallas && typeof p.tallas === 'string') {
+                                    try {
+                                      const parsed = JSON.parse(p.tallas);
+                                      if (Array.isArray(parsed) && parsed.length > 0) sizes = parsed;
+                                    } catch(e) {
+                                      sizes = p.tallas.split(",").map((s: string) => s.trim());
+                                    }
+                                  } else if (p.talla && typeof p.talla === 'string') {
+                                    sizes = p.talla.split(",").map((s: string) => s.trim());
+                                  }
+                                  
+                                  const currentItem = portalCart[p.id] || { quantity: 0, talla: sizes[0] };
+                                  return (
                                   <div key={p.id} className={`p-4 rounded-2xl border transition-all ${currentItem.quantity > 0 ? "bg-white dark:bg-slate-900 border-blue-500/30 shadow-md shadow-blue-500/5" : "bg-white/40 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"}`}>
                                     <div className="flex justify-between items-start gap-2 mb-2.5">
                                       <div className="flex-1 min-w-0 pr-2">

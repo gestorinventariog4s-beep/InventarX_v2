@@ -17,9 +17,9 @@ interface UsersModuleProps {
   newUserForm: { document: string; password: string; fullName: string; role: UserRole };
   setNewUserForm: (v: { document: string; password: string; fullName: string; role: UserRole }) => void;
   onSubmitNewUser: () => Promise<void>;
-  onUpdateUser: (id: number, payload: UpdateUserPayload) => Promise<void>;
-  onSuspendUser: (id: number) => Promise<void>;
-  onDeleteUser: (id: number) => Promise<void>;
+  onUpdateUser: (id: number | string, payload: UpdateUserPayload) => Promise<void>;
+  onSuspendUser: (id: number | string) => Promise<void>;
+  onDeleteUser: (id: number | string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -122,12 +122,13 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
                     />
                   </div>
                   <select 
-                    className="w-full bg-slate-100 dark:bg-white/5 border-none rounded-2xl py-3.5 px-4 text-[10px] font-black text-slate-900 dark:text-white outline-none appearance-none"
-                    value={newUserForm.role} onChange={(e) => setNewUserForm({...newUserForm, role: e.target.value as UserRole})} required
-                  >
-                    <option value="OPERADOR">OPERADOR</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
+                     className="w-full bg-slate-100 dark:bg-white/5 border-none rounded-2xl py-3.5 px-4 text-[10px] font-black text-slate-900 dark:text-white outline-none appearance-none"
+                     value={newUserForm.role} onChange={(e) => setNewUserForm({...newUserForm, role: e.target.value as UserRole})} required
+                   >
+                     <option value="OPERADOR">OPERADOR</option>
+                     <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                     <option value="AUDITOR">AUDITOR</option>
+                   </select>
                </div>
 
                <div className="relative group">
@@ -232,8 +233,8 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
               <input className="bg-slate-100 dark:bg-white/10 rounded-xl px-4 py-3 text-sm font-bold" placeholder="Nombre completo" value={editForm.fullName} onChange={(e) => setEditForm((prev) => ({ ...prev, fullName: e.target.value }))} />
               <select className="bg-slate-100 dark:bg-white/10 rounded-xl px-4 py-3 text-sm font-bold" value={editForm.role} onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value as UserRole }))}>
                 <option value="OPERADOR">OPERADOR</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="EMPLEADO">EMPLEADO</option>
+                <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                <option value="AUDITOR">AUDITOR</option>
               </select>
               <input className="bg-slate-100 dark:bg-white/10 rounded-xl px-4 py-3 text-sm font-bold" type="password" placeholder="Nueva contraseña (opcional)" value={editForm.password ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, password: e.target.value }))} />
             </div>
