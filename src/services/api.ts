@@ -36,17 +36,6 @@ const normalizeSizeStocks = (sizeStocks: Array<{ talla: string; stock: number }>
   return Array.from(grouped.entries()).map(([talla, stock]) => ({ talla, stock }));
 };
 
-const buildInventoryPayload = (payload: ProductPayload) => {
-  const totalStock = (payload.sizeStocks ?? []).reduce((sum, item) => sum + (item.stock ?? 0), 0);
-  const talla = (payload.sizeStocks ?? []).map((item) => item.talla).join(', ');
-
-  // Keep backward compatibility with older backend DTOs that still require stock/talla.
-  return {
-    ...payload,
-    stock: totalStock,
-    talla,
-  };
-};
 
 const readSizeStockCache = (): CachedSizeStockStore => {
   try {
