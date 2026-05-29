@@ -12,7 +12,7 @@ export const fetchAuditLogs = (
 import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const SIZE_STOCK_CACHE_KEY = 'gestion-dotacion-size-stocks-cache';
 
 type CachedSizeStock = { talla: string; stock: number };
@@ -200,19 +200,57 @@ export const downloadFile = async (path: string, filename: string, session: Auth
   URL.revokeObjectURL(url);
 };
 
+// Login biométrico usando los endpoints reales del backend
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE}/api/auth/login`, {
+  // Paso 1: obtener challenge
+  const challengeRes = await fetch(`${API_BASE}/api/v1/auth/biometric/login-challenge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email: username }),
   });
+  if (!challengeRes.ok) throw new Error('No se pudo obtener challenge de login');
+  const challenge = await challengeRes.json();
 
-  if (!response.ok) {
-    const payload: unknown = await response.json().catch(() => null);
-    if (response.status === 401) throw new Error('Credenciales inválidas.');
+  // Paso 2: verificar login (simulación, normalmente aquí iría la lógica WebAuthn)
+  const verifyRes = await fetch(`${API_BASE}/api/v1/auth/biometric/login-verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...challenge, email: username, password }),
+  });
+  if (!verifyRes.ok) {
+    const payload: unknown = await verifyRes.json().catch(() => null);
+    if (verifyRes.status === 401) throw new Error('Credenciales inválidas.');
     throw new Error(parseApiError(payload, 'No se pudo iniciar sesión.'));
   }
+  const data = (await verifyRes.json()) as AuthResponse;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  return data;
+};
 
+// WebAuthn Biometric Login Endpoints
+export const getLoginChallenge = async (email: string) => {
+  const response = await fetch(`${API_BASE}/api/v1/auth/biometric/login-challenge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    throw new Error(parseApiError(payload, 'No se pudo iniciar biometría.'));
+  }
+  return response.json();
+};
+
+export const verifyLoginChallenge = async (email: string, credential: any): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE}/api/v1/auth/biometric/login-verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, credential }),
+  });
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    throw new Error(parseApiError(payload, 'Verificación biométrica fallida.'));
+  }
   const data = (await response.json()) as AuthResponse;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   return data;
@@ -239,24 +277,24 @@ export const publicFetch = async <T>(path: string, options?: globalThis.RequestI
 };
 
 export const fetchPublicProducts = async () => {
-  const products = await publicFetch<Product[]>('/api/public/products');
+  const products = await publicFetch<Product[]>('/api/v1/public/products');
   return onlyActiveProducts(normalizeProducts(products));
 };
 
 export const fetchInventoryProducts = async (session: AuthResponse | null, onLogout: () => void) => {
-  const products = await authFetch<Product[]>('/api/inventory/products', session, onLogout);
+  const products = await authFetch<Product[]>('/api/v1/inventory/products', session, onLogout);
   return onlyActiveProducts(normalizeProducts(products));
 };
 
 export const fetchInventoryAlerts = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<StockAlert[]>('/api/inventory/alerts', session, onLogout);
+  authFetch<StockAlert[]>('/api/v1/inventory/alerts', session, onLogout);
 
 export const createInventoryProduct = async (
   payload: ProductPayload,
   session: AuthResponse | null,
   onLogout: () => void,
 ) => {
-  const product = await authFetch<Product>('/api/inventory/products', session, onLogout, {
+  const product = await authFetch<Product>('/api/v1/inventory/products', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(buildInventoryPayload(payload)),
   });
@@ -300,7 +338,7 @@ export const confirmPublicQrDelivery = (payload: {
   evidencePhotos?: string[];
   giverSignatureDataUrl?: string;
   giverFullName?: string;
-}) => publicFetch<DeliveryResultResponse>('/api/public/deliveries/confirm', {
+}) => publicFetch<DeliveryResultResponse>('/api/v1/public/deliveries/confirm', {
   method: 'POST',
   body: JSON.stringify(payload),
 });
@@ -318,7 +356,7 @@ export interface DeliverySession {
 }
 
 export const startDeliverySession = (document: string) => 
-  publicFetch<DeliverySession>('/api/public/delivery-sessions/start', {
+  publicFetch<DeliverySession>('/api/v1/public/delivery-sessions/start', {
     method: 'POST',
     body: JSON.stringify({ employeeDocument: document })
   });
@@ -374,7 +412,7 @@ export const getEmployee = (document: string) =>
   publicFetch<EmployeeProfile>(`/api/public/employees/${document}`);
 
 export const saveEmployee = (profile: EmployeeProfile) => 
-  publicFetch<EmployeeProfile>('/api/public/employees', {
+  publicFetch<EmployeeProfile>('/api/v1/public/employees', {
     method: 'POST',
     body: JSON.stringify(profile),
   });
@@ -389,10 +427,10 @@ export const savePendingDelivery = (document: string, items: Array<{ productId: 
   });
 
 export const products = () =>
-  publicFetch<any[]>('/api/public/products');
+  publicFetch<any[]>('/api/v1/public/products');
 
 export const createPendingDelivery = (payload: { employeeDocument: string; items: Array<{ productId: number; quantity: number }> }, session: AuthResponse | null, onLogout: () => void) => 
-  authFetch<any>('/api/deliveries/pending', session, onLogout, {
+  authFetch<any>('/api/v1/deliveries/pending', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -403,14 +441,14 @@ export const resendDeliveryEmail = (document: string, session: AuthResponse | nu
   });
 
 export const listUsers = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<AppUser[]>('/api/admin/users', session, onLogout);
+  authFetch<AppUser[]>('/api/v1/admin/users', session, onLogout);
 
 export const registerUser = (
   payload: { document: string; fullName: string; password: string; role: UserRole },
   session: AuthResponse | null,
   onLogout: () => void,
 ) =>
-  authFetch<{ id: number; username: string; document: string; fullName: string; role: UserRole }>('/api/auth/register', session, onLogout, {
+  authFetch<{ id: number; username: string; document: string; fullName: string; role: UserRole }>('/api/v1/auth/register', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -444,10 +482,10 @@ export interface EmployeeProfile {
 }
 
 export const getPendingEmployees = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<any[]>('/api/employee/pending', session, onLogout);
+  authFetch<any[]>('/api/v1/employee/pending', session, onLogout);
 
 export const getAllEmployees = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<any[]>('/api/employee/all', session, onLogout);
+  authFetch<any[]>('/api/v1/employee/all', session, onLogout);
 
 export const updateEmployeeState = (id: number, state: string, session: AuthResponse | null, onLogout: () => void) =>
   authFetch<any>(`/api/employee/${id}/state?state=${state}`, session, onLogout, {
@@ -455,7 +493,7 @@ export const updateEmployeeState = (id: number, state: string, session: AuthResp
   });
 
 export const registerEmployeeAdmin = (payload: any, session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<any>('/api/employee/register', session, onLogout, {
+  authFetch<any>('/api/v1/employee/register', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(payload)
   });

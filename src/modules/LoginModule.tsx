@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package,
@@ -41,6 +41,15 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
   const isBusy = Boolean(isLoading);
   const errorMessage = error ?? '';
 
+  useEffect(() => {
+    if (!loginUser && !internalUser) {
+      const remembered = localStorage.getItem('gestion-dotacion-last-user');
+      if (remembered) {
+        setInternalUser(remembered);
+      }
+    }
+  }, []);
+
   const updateUser = (value: string) => {
     if (typeof setLoginUser === 'function') {
       setLoginUser(value);
@@ -57,14 +66,15 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
     setInternalPass(value);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    if (resolvedUser) {
+      localStorage.setItem('gestion-dotacion-last-user', resolvedUser);
+    }
     if (typeof onSubmit === 'function') {
       await onSubmit(e);
       return;
     }
-
     if (typeof onLogin === 'function') {
       await onLogin({ username: resolvedUser, password: resolvedPass });
     }
@@ -72,7 +82,6 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
 
   return (
     <main className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-white">
-      {/* --- BACKGROUND DECORATION --- */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[60%] bg-blue-50/50 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[50%] bg-slate-50 rounded-full blur-[100px]" />
@@ -86,7 +95,6 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
       >
         <div className="bg-white rounded-[3.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden flex flex-col md:flex-row min-h-[620px]">
           
-          {/* Image Side (Visible on MD+) */}
           <div className="hidden md:block md:w-1/2 relative overflow-hidden group">
             <img 
               src={heroImage}
@@ -102,7 +110,6 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
             </div>
           </div>
 
-          {/* Form Side */}
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center relative">
             <div className="mb-10">
               <motion.div
@@ -117,7 +124,7 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ingrese a su panel operativo</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleStandardSubmit} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador</label>
                 <div className="relative group">
