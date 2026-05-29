@@ -210,7 +210,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
 
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null);
-    if (response.status === 401) throw new Error('Credenciales inválidas.');
+    if (response.status === 401) throw new Error('Usuario o clave incorrecta.');
     throw new Error(parseApiError(payload, 'No se pudo iniciar sesión.'));
   }
 

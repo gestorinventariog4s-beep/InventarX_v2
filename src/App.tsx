@@ -521,24 +521,33 @@ function App() {
     return <QrReceptionPortal />;
   }
 
+  const [authError, setAuthError] = useState<string | null>(null);
+
   if (!session) {
     return (
-      <LoginModule
-        onLogin={async (credentials) => {
-          setIsLoading(true);
-          try {
-            const authData = await login(credentials.username, credentials.password);
-            handleLoginSuccess(authData);
-          } catch (error) {
-            showToast('error', getSafeErrorMessage(error, 'No fue posible iniciar sesión.'));
-          } finally {
-            setIsLoading(false);
-          }
-        }}
-        isLoading={isLoading}
-        isDarkMode={isDarkMode}
-        toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-      />
+      <>
+        <LoginModule
+          onLogin={async (credentials) => {
+            setIsLoading(true);
+            setAuthError(null);
+            try {
+              const authData = await login(credentials.username, credentials.password);
+              handleLoginSuccess(authData);
+            } catch (error) {
+              const msg = getSafeErrorMessage(error, 'No fue posible iniciar sesión.');
+              setAuthError(msg);
+              showToast('error', msg);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          isLoading={isLoading}
+          error={authError || undefined}
+          isDarkMode={isDarkMode}
+          toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        />
+        <BottomToast toast={toast} />
+      </>
     );
   }
 
