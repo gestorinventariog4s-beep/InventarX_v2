@@ -5,4 +5,4 @@ export const fetchInventoryMovements = (
   session: AuthResponse | null,
   onLogout: () => void
 ) =>
-  authFetch<InventoryMovement[]>('/api/inventory/movements', session, onLogout);
+  authFetch<InventoryMovement[]>('/api/v1/inventario/movimientos', session, onLogout);

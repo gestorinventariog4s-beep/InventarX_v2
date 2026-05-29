@@ -705,7 +705,7 @@ export const QrReceptionPortal: React.FC = () => {
 
         <footer className="text-center pb-10">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
-            © 2024 Invetarx • Gestión Inteligente de Suministros
+            © 2026 INVENTARX SYSTEM • Gestión Inteligente de Suministros
           </p>
         </footer>
       </div>

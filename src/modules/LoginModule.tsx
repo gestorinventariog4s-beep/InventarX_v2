@@ -246,7 +246,7 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
 
             <div className="mt-auto pt-10">
               <p className="text-[9px] text-slate-300 font-black uppercase tracking-[0.4em] text-center">
-                © 2026
+                © 2026 INVENTARX SYSTEM
               </p>
             </div>
           </div>

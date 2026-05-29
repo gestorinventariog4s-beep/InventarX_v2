@@ -276,21 +276,32 @@ export const fetchPublicProducts = async () => {
 };
 
 export const fetchInventoryProducts = async (session: AuthResponse | null, onLogout: () => void) => {
-  const products = await authFetch<Product[]>('/api/v1/inventory/products', session, onLogout);
+  const products = await authFetch<Product[]>('/api/v1/inventario/productos', session, onLogout);
   return onlyActiveProducts(normalizeProducts(products));
 };
 
 export const fetchInventoryAlerts = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<StockAlert[]>('/api/v1/inventory/alerts', session, onLogout);
+  authFetch<StockAlert[]>('/api/v1/inventario/alertas', session, onLogout);
 
 export const createInventoryProduct = async (
   payload: ProductPayload,
   session: AuthResponse | null,
   onLogout: () => void,
 ) => {
-  const product = await authFetch<Product>('/api/v1/inventory/products', session, onLogout, {
+  const product = await authFetch<Product>('/api/v1/inventario/productos', session, onLogout, {
     method: 'POST',
-    body: JSON.stringify(buildInventoryPayload(payload)),
+    body: JSON.stringify({
+      sku: payload.sku,
+      nombre: payload.name,
+      descripcion: payload.categoryDescription || '',
+      categoria: payload.categoryName,
+      tipo: payload.type,
+      color: payload.color,
+      tallas: payload.sizeStocks,
+      stockMinimo: payload.stockMinimo,
+      stockMaximo: payload.stockMaximo,
+      stockActual: payload.sizeStocks.reduce((acc, curr) => acc + curr.stock, 0)
+    }),
   });
   cacheSizeStocks(product.id, product.sku ?? payload.sku, payload.sizeStocks);
   return normalizeProduct(product);
@@ -302,9 +313,20 @@ export const updateInventoryProduct = async (
   session: AuthResponse | null,
   onLogout: () => void,
 ) => {
-  const product = await authFetch<Product>(`/api/inventory/products/${id}`, session, onLogout, {
+  const product = await authFetch<Product>(`/api/v1/inventario/productos/${id}`, session, onLogout, {
     method: 'PUT',
-    body: JSON.stringify(buildInventoryPayload(payload)),
+    body: JSON.stringify({
+      sku: payload.sku,
+      nombre: payload.name,
+      descripcion: payload.categoryDescription || '',
+      categoria: payload.categoryName,
+      tipo: payload.type,
+      color: payload.color,
+      tallas: payload.sizeStocks,
+      stockMinimo: payload.stockMinimo,
+      stockMaximo: payload.stockMaximo,
+      stockActual: payload.sizeStocks.reduce((acc, curr) => acc + curr.stock, 0)
+    }),
   });
   cacheSizeStocks(product.id ?? id, product.sku ?? payload.sku, payload.sizeStocks);
   return normalizeProduct(product);
@@ -316,7 +338,7 @@ export const deleteInventoryProduct = (
   session: AuthResponse | null,
   onLogout: () => void,
 ) =>
-  authFetch<void>(`/api/inventory/products/${id}?mode=${mode}`, session, onLogout, {
+  authFetch<void>(`/api/v1/inventario/productos/${id}?mode=${mode}`, session, onLogout, {
     method: 'DELETE',
   });
 
@@ -332,10 +354,28 @@ export const confirmPublicQrDelivery = (payload: {
   evidencePhotos?: string[];
   giverSignatureDataUrl?: string;
   giverFullName?: string;
-}) => publicFetch<DeliveryResultResponse>('/api/v1/public/deliveries/confirm', {
-  method: 'POST',
-  body: JSON.stringify(payload),
-});
+}) => {
+  const transformedPayload = {
+    sedeId: 'sede-principal-01',
+    receptor: {
+      documentoIdentidad: payload.employeeDocument,
+      nombreCompleto: payload.employeeFullName,
+      correo: payload.employeeEmail,
+    },
+    operadorId: payload.qrToken.includes('DIRECT-ADMIN') ? 'admin' : payload.qrToken,
+    tipoEvidencia: 'FIRMA_DIGITAL',
+    evidenciaBase64: payload.signatureDataUrl,
+    inventarioItems: payload.items.map(item => ({
+      productoId: item.productId.toString(),
+      cantidad: item.quantity
+    }))
+  };
+
+  return publicFetch<DeliveryResultResponse>('/api/v1/entregas/procesar', {
+    method: 'POST',
+    body: JSON.stringify(transformedPayload),
+  });
+};
 
 // Delivery Session Endpoints
 export interface DeliverySession {
