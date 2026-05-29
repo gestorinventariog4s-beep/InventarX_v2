@@ -91,38 +91,47 @@ const parseLegacySizeStocks = (product: Product) => {
   }));
 };
 
-const normalizeProduct = (product: Product): Product => {
-  const current = Array.isArray(product.sizeStocks) ? product.sizeStocks : [];
+const normalizeProduct = (rawProduct: any): Product => {
+  const p = {
+    id: rawProduct.id,
+    sku: rawProduct.sku,
+    name: rawProduct.nombre || rawProduct.name || '',
+    type: rawProduct.tipo || rawProduct.type || 'General',
+    color: rawProduct.color || '',
+    talla: rawProduct.talla,
+    photoUrl: rawProduct.photoUrl,
+    stock: rawProduct.stockActual ?? rawProduct.stock ?? 0,
+    stockMinimo: rawProduct.stockMinimo ?? 0,
+    stockMaximo: rawProduct.stockMaximo ?? 100,
+    active: rawProduct.activo ?? rawProduct.active ?? true,
+    category: rawProduct.categoria ? { id: Date.now(), name: rawProduct.categoria, description: rawProduct.descripcion } : (rawProduct.category || { id: 0, name: 'General' }),
+    sizeStocks: rawProduct.tallas || rawProduct.sizeStocks || []
+  } as Product;
+
+  const current = Array.isArray(p.sizeStocks) ? p.sizeStocks : [];
   if (current.length > 0) {
     const normalized = normalizeSizeStocks(current.map((s) => ({ talla: s.talla, stock: s.stock })));
-    cacheSizeStocks(product.id, product.sku, normalized);
-    return {
-      ...product,
-      sizeStocks: normalized.map((s, idx) => ({
-        id: current[idx]?.id ?? -(product.id * 100 + idx + 1),
+    cacheSizeStocks(p.id, p.sku, normalized);
+    p.sizeStocks = normalized.map((s, idx) => ({
+      id: current[idx]?.id ?? -(p.id * 100 + idx + 1),
+      talla: s.talla,
+      stock: s.stock,
+    }));
+  } else {
+    const cached = getCachedSizeStocks(p);
+    if (cached.length > 0) {
+      const normalizedCached = normalizeSizeStocks(cached);
+      p.sizeStocks = normalizedCached.map((s, idx) => ({
+        id: -(p.id * 100 + idx + 1),
         talla: s.talla,
         stock: s.stock,
-      })),
-    };
+      }));
+    } else {
+      p.sizeStocks = parseLegacySizeStocks(p);
+    }
   }
 
-  const cached = getCachedSizeStocks(product);
-  if (cached.length > 0) {
-    const normalizedCached = normalizeSizeStocks(cached);
-    return {
-      ...product,
-      sizeStocks: normalizedCached.map((s, idx) => ({
-        id: -(product.id * 100 + idx + 1),
-        talla: s.talla,
-        stock: s.stock,
-      })),
-    };
-  }
-
-  return {
-    ...product,
-    sizeStocks: parseLegacySizeStocks(product),
-  };
+  return p;
 };
 
 const normalizeProducts = (products: Product[]) => products.map(normalizeProduct);

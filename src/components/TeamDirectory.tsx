@@ -17,7 +17,7 @@ const ESTADO_COLORS: Record<string, string> = {
   DISPONIBLE: 'bg-emerald-500',
   EN_RUTA: 'bg-blue-500',
   ALMUERZO: 'bg-amber-500',
-  AUSENTE: 'bg-slate-500',
+  AUSENTE: 'bg-transparent border-dashed border-slate-300 dark:border-slate-600',
 };
 
 const ESTADO_LABELS: Record<string, string> = {
