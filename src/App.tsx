@@ -8,6 +8,7 @@ import { QrReceptionPortal } from './modules/QrReceptionPortal';
 import { AuditModule } from './modules/AuditModule';
 import { UsersModule } from './modules/UsersModule';
 import { LoginModule } from './modules/LoginModule';
+import { ProfilePanel } from './components/ProfilePanel';
 import { BottomToast, type ToastState, type ToastType } from './components/BottomToast';
 import {
   confirmPublicQrDelivery,
@@ -66,7 +67,7 @@ const MOCK_PRODUCTS: Product[] = [
 ];
 
 const MOCK_USERS: AppUser[] = [
-  { id: 1, username: 'admin', fullName: 'Administrador Sistema', role: 'ADMIN' },
+  { id: 1, username: 'ADMINISTRADOR', fullName: 'Administrador Sistema', role: 'ADMINISTRADOR' },
 ];
 
 const EMPTY_NEW_USER_FORM = {
@@ -259,7 +260,7 @@ function App() {
 
   // Carga automática de usuarios para Administradores
   useEffect(() => {
-    if (!session || session.role !== 'ADMIN') return;
+    if (!session || session.role !== 'ADMINISTRADOR') return;
 
     void refreshUsers().catch(() => {
       setUsers(MOCK_USERS);
@@ -289,13 +290,13 @@ function App() {
   // OPERACIONES DE FLUJO: CONTROL DE USUARIOS
   // ==========================================
   const refreshUsers = async () => {
-    if (!session || session.role !== 'ADMIN') return;
+    if (!session || session.role !== 'ADMINISTRADOR') return;
     const response = await listUsers(session, handleLogout);
     setUsers(response);
   };
 
   const handleSubmitNewUser = async () => {
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede crear nuevos usuarios.');
       return;
     }
@@ -326,7 +327,7 @@ function App() {
   };
 
   const handleUpdateUser = async (id: number, payload: { document: string; fullName: string; password?: string; role: UserRole }) => {
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede editar usuarios.');
       return;
     }
@@ -350,7 +351,7 @@ function App() {
   };
 
   const handleSuspendUser = async (id: number) => {
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede suspender usuarios.');
       return;
     }
@@ -369,7 +370,7 @@ function App() {
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMINISTRADOR') {
       showToast('error', 'Solo un usuario ADMIN puede eliminar usuarios.');
       return;
     }
@@ -522,6 +523,7 @@ function App() {
   }
 
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   if (!session) {
     return (
@@ -560,6 +562,7 @@ function App() {
         onLogout={handleLogout} 
         isDarkMode={isDarkMode}
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-12 max-lg:pt-6">
@@ -663,10 +666,18 @@ function App() {
             onUpdateUser={handleUpdateUser}
             onSuspendUser={handleSuspendUser}
             onDeleteUser={handleDeleteUser}
-            isLoading={isLoading || session.role !== 'ADMIN'} 
+            isLoading={isLoading || session.role !== 'ADMINISTRADOR'} 
           />
         )}
       </main>
+
+      <ProfilePanel 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        isDarkMode={isDarkMode} 
+        session={session} 
+        showToast={showToast} 
+      />
 
       <BottomToast toast={toast} />
     </div>

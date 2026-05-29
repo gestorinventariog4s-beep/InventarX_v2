@@ -185,8 +185,8 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${u.active === false ? 'bg-rose-500' : u.role === 'ADMIN' ? 'bg-blue-500' : 'bg-slate-400'}`} />
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${u.active === false ? 'text-rose-500' : u.role === 'ADMIN' ? 'text-blue-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                      <div className={`w-2 h-2 rounded-full ${u.active === false ? 'bg-rose-500' : u.role === 'ADMINISTRADOR' ? 'bg-blue-500' : 'bg-slate-400'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${u.active === false ? 'text-rose-500' : u.role === 'ADMINISTRADOR' ? 'text-blue-500' : 'text-slate-500 dark:text-slate-400'}`}>
                         {u.active === false ? 'SUSPENDIDO' : u.role}
                       </span>
                     </div>

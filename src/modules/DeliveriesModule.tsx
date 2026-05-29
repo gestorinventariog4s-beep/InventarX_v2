@@ -325,7 +325,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   // Auto-generate admin corporate seal when admin proceeds to sign
   React.useEffect(() => {
     if (step === 3 && session && !giverSignature) {
-      const seal = generateCorporateGiverSignature(session.fullName || session.username, session.role || 'ADMIN');
+      const seal = generateCorporateGiverSignature(session.fullName || session.username, session.role || 'ADMINISTRADOR');
       setGiverSignature(seal);
     }
   }, [step, session, giverSignature]);

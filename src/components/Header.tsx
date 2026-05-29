@@ -10,6 +10,7 @@ interface HeaderProps {
   onLogout: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,7 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   session,
   onLogout,
   isDarkMode,
-  toggleDarkMode
+  toggleDarkMode,
+  onOpenProfile
 }) => {
   const navItems = [
     { id: 'resumen' as ModuleId, label: 'Panel', icon: Activity },
@@ -27,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'qr' as ModuleId, label: 'Mi QR', icon: QrCode },
     { id: 'auditoria' as ModuleId, label: 'Auditoría', icon: BarChart3 },
     { id: 'usuarios' as ModuleId, label: 'Talento', icon: Users },
-  ].filter((item) => (item.id === 'usuarios' ? session.role === 'ADMIN' : true));
+  ].filter((item) => (item.id === 'usuarios' ? session.role === 'ADMINISTRADOR' : true));
 
   return (
     <>
@@ -83,10 +85,13 @@ export const Header: React.FC<HeaderProps> = ({
               {isDarkMode ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
             </motion.button>
   
-            <div className="text-right hidden sm:block px-4 border-l border-slate-200 dark:border-white/10">
+            <button 
+              onClick={onOpenProfile}
+              className="text-right hidden sm:block px-4 py-1 border-l border-slate-200 dark:border-white/10 hover:opacity-70 transition-opacity cursor-pointer focus:outline-none"
+            >
               <p className={`text-sm font-black leading-none ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{session.fullName?.split(' ')[0] || session.username}</p>
               <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-1.5 opacity-70">{session.role}</p>
-            </div>
+            </button>
   
             <motion.button
               whileHover={{ scale: 1.1, backgroundColor: '#e11d48', color: '#fff' }}

@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'OPERADOR' | 'EMPLEADO';
+export type UserRole = 'ADMINISTRADOR' | 'OPERADOR' | 'AUDITOR';
 export type ModuleId = 'resumen' | 'inventario' | 'entregas' | 'qr' | 'reportes' | 'auditoria' | 'usuarios';
 
 export interface AuthResponse {
@@ -165,4 +165,25 @@ export interface ReturnFormState {
   productId: string;
   quantity: string;
   reason: string;
+}
+
+export interface UserProfile {
+  id: string;
+  usuarioId: string;
+  nombreCompleto: string;
+  apodo?: string;
+  fotoAvatar?: string;
+  fotoPortada?: string;
+  puestoTrabajo?: string;
+  biografia?: string;
+  estadoActual: 'DISPONIBLE' | 'EN_RUTA' | 'ALMUERZO' | 'AUSENTE';
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface UpdatePerfilPayload {
+  nombreCompleto?: string;
+  apodo?: string;
+  puestoTrabajo?: string;
+  biografia?: string;
 }
