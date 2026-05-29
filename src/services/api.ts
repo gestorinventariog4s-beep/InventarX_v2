@@ -200,29 +200,21 @@ export const downloadFile = async (path: string, filename: string, session: Auth
   URL.revokeObjectURL(url);
 };
 
-// Login biométrico usando los endpoints reales del backend
+// Login estándar con usuario y contraseña
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
-  // Paso 1: obtener challenge
-  const challengeRes = await fetch(`${API_BASE}/api/v1/auth/biometric/login-challenge`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: username }),
+    body: JSON.stringify({ username, password }),
   });
-  if (!challengeRes.ok) throw new Error('No se pudo obtener challenge de login');
-  const challenge = await challengeRes.json();
 
-  // Paso 2: verificar login (simulación, normalmente aquí iría la lógica WebAuthn)
-  const verifyRes = await fetch(`${API_BASE}/api/v1/auth/biometric/login-verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...challenge, email: username, password }),
-  });
-  if (!verifyRes.ok) {
-    const payload: unknown = await verifyRes.json().catch(() => null);
-    if (verifyRes.status === 401) throw new Error('Credenciales inválidas.');
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    if (response.status === 401) throw new Error('Credenciales inválidas.');
     throw new Error(parseApiError(payload, 'No se pudo iniciar sesión.'));
   }
-  const data = (await verifyRes.json()) as AuthResponse;
+
+  const data = (await response.json()) as AuthResponse;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   return data;
 };
