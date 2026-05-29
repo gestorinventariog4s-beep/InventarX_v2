@@ -535,3 +535,10 @@ export const uploadPortada = (base64Image: string) => {
     body: JSON.stringify({ base64Image }),
   });
 };
+
+export const fetchEntregas = (search?: string) => {
+  const session = readSession();
+  // TODO: Make sedeId configurable if needed, for now use default or empty
+  const url = search ? `/api/v1/entregas?sedeId=sede-principal-01&search=${encodeURIComponent(search)}` : `/api/v1/entregas?sedeId=sede-principal-01`;
+  return authFetch<{ message: string; data: import('../types').Entrega[] }>(url, session, profileLogout);
+};

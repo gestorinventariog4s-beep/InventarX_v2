@@ -187,3 +187,39 @@ export interface UpdatePerfilPayload {
   puestoTrabajo?: string;
   biografia?: string;
 }
+
+export interface Receptor {
+  id: string;
+  documentoIdentidad: string;
+  nombreCompleto: string;
+  telefono?: string;
+  correo?: string;
+  direccion?: string;
+}
+
+export interface EntregaItem {
+  productoId: string | number;
+  cantidad: number;
+}
+
+export interface Entrega {
+  id: string;
+  idUnicoRastreo: string;
+  estado: string;
+  sedeId: string;
+  receptorId: string;
+  operadorId: string;
+  tipoEvidencia: string;
+  urlEvidencia?: string;
+  urlActaPdf?: string;
+  inventarioItems: EntregaItem[];
+  creadoEn: string;
+  actualizadoEn: string;
+  receptor?: Receptor;
+  operador?: {
+    correo: string;
+    perfil?: {
+      nombreCompleto: string;
+    };
+  };
+}

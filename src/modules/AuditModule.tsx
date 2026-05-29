@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchInventoryMovements } from '../services/inventoryMovements';
-import type { InventoryMovement } from '../types';
+import { fetchEntregas } from '../services/api';
+import type { InventoryMovement, Entrega } from '../types';
 import { 
   ShieldCheck, 
   Calendar, 
@@ -46,6 +47,9 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
   isLoading
 }) => {
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [search, setSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const session = getSession();
@@ -55,6 +59,18 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
       .then(setMovements)
       .catch(() => setMovements([]));
   }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setIsSearching(true);
+      fetchEntregas(search)
+        .then((res) => setEntregas(res.data))
+        .catch(() => setEntregas([]))
+        .finally(() => setIsSearching(false));
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, auditLogs]); // Re-fetch if logs change (meaning a new action happened)
 
   return (
     <div className="space-y-6 animate-fade pb-10">
@@ -125,7 +141,96 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
             >
               <Search size={16} /> Sincronizar Bóveda
             </button>
+
+            <div className="mt-4 pt-4 border-t border-blue-50 dark:border-white/10">
+              <p className="text-[9px] font-black text-blue-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-4">Buscador de Entregas</p>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Nombre o Documento del receptor..."
+                  className="w-full bg-blue-50/50 dark:bg-white/5 border-none rounded-xl py-4 pl-12 pr-4 text-xs font-black text-blue-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                  value={search} onChange={(e) => setSearch(e.target.value)}
+                />
+                {isSearching && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] text-blue-400 animate-pulse font-black uppercase">Buscando...</span>}
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Tabla de Entregas Tácticas */}
+      <div className="bg-white dark:bg-white/5 border border-blue-100 dark:border-white/10 rounded-[2.5rem] shadow-sm overflow-hidden mb-8">
+        <div className="p-6 border-b border-blue-50 dark:border-white/5 bg-blue-50/20 dark:bg-black/20 flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <ShieldCheck size={18} className="text-blue-600" />
+            <span className="text-[9px] font-black text-blue-900 dark:text-slate-400 uppercase tracking-[0.2em]">Registro de Entregas Tácticas</span>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-blue-50/30 dark:bg-transparent">
+                <th className="px-6 py-4 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest border-b border-blue-50 dark:border-white/5">ID Evento</th>
+                <th className="px-6 py-4 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest border-b border-blue-50 dark:border-white/5">Operador</th>
+                <th className="px-6 py-4 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest border-b border-blue-50 dark:border-white/5">Receptor</th>
+                <th className="px-6 py-4 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest border-b border-blue-50 dark:border-white/5">Artículos</th>
+                <th className="px-6 py-4 text-[9px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-widest border-b border-blue-50 dark:border-white/5 text-right">Acta</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-blue-50 dark:divide-white/5">
+              {entregas.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-[9px] font-black text-blue-300 uppercase tracking-widest">No hay entregas registradas</td>
+                </tr>
+              ) : (
+                entregas.map((entrega) => (
+                  <tr key={entrega.id} className="hover:bg-blue-50/30 dark:hover:bg-white/5 transition-colors group text-[11px]">
+                    <td className="px-6 py-4">
+                      <code className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1 rounded-lg">{entrega.idUnicoRastreo}</code>
+                      <p className="text-[9px] mt-1.5 opacity-60 font-medium">{new Date(entrega.creadoEn).toLocaleString()}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <User size={12} className="text-blue-400" />
+                        <span className="font-black text-blue-900 dark:text-slate-300">
+                          {entrega.operador?.perfil?.nombreCompleto || entrega.operador?.correo || 'Desconocido'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-black text-blue-900 dark:text-white block">{entrega.receptor?.nombreCompleto}</span>
+                      <span className="text-[9px] opacity-70 mt-1 block tracking-wider uppercase">{entrega.receptor?.documentoIdentidad}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {entrega.inventarioItems.map((item, idx) => (
+                          <span key={idx} className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded text-[9px] font-black">
+                            {item.cantidad}x Prod-{item.productoId}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {(entrega.urlActaPdf || entrega.urlEvidencia) ? (
+                        <a 
+                          href={entrega.urlActaPdf || entrega.urlEvidencia}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-100 transition-colors"
+                        >
+                          Ver Acta
+                        </a>
+                      ) : (
+                        <span className="text-[9px] opacity-50 uppercase tracking-widest font-black">Sin Acta</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
