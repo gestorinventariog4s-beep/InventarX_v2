@@ -9,7 +9,7 @@ export const fetchAuditLogs = (
   onLogout: () => void
 ) =>
   authFetch<AuditLog[]>(`/api/audit/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
-import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole } from '../types';
+import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -489,3 +489,49 @@ export const registerEmployeeAdmin = (payload: any, session: AuthResponse | null
     method: 'POST',
     body: JSON.stringify(payload)
   });
+
+// ==========================================
+// PERFIL
+// ==========================================
+
+const profileLogout = () => {
+  localStorage.removeItem('gestion-dotacion-auth');
+  window.location.reload();
+};
+
+export const getMiPerfil = () => {
+  const session = readSession();
+  return authFetch<UserProfile>('/api/v1/perfiles/me', session, profileLogout);
+};
+
+export const updatePerfil = (data: UpdatePerfilPayload) => {
+  const session = readSession();
+  return authFetch<UserProfile>('/api/v1/perfiles/editar', session, profileLogout, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateEstado = (estado: 'DISPONIBLE' | 'EN_RUTA' | 'ALMUERZO' | 'AUSENTE') => {
+  const session = readSession();
+  return authFetch<UserProfile>('/api/v1/perfiles/estado', session, profileLogout, {
+    method: 'PATCH',
+    body: JSON.stringify({ estadoActual: estado }),
+  });
+};
+
+export const uploadAvatar = (base64Image: string) => {
+  const session = readSession();
+  return authFetch<UserProfile>('/api/v1/perfiles/upload-avatar', session, profileLogout, {
+    method: 'POST',
+    body: JSON.stringify({ base64Image }),
+  });
+};
+
+export const uploadPortada = (base64Image: string) => {
+  const session = readSession();
+  return authFetch<UserProfile>('/api/v1/perfiles/upload-portada', session, profileLogout, {
+    method: 'POST',
+    body: JSON.stringify({ base64Image }),
+  });
+};
