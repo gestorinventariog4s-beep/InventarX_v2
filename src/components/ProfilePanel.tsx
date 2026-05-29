@@ -10,6 +10,7 @@ interface ProfilePanelProps {
   isDarkMode: boolean;
   session: any;
   showToast: (type: 'success' | 'error', message: string) => void;
+  onProfileUpdate?: (profile: UserProfile) => void;
 }
 
 export const ProfilePanel: React.FC<ProfilePanelProps> = ({
@@ -17,7 +18,8 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
   onClose,
   isDarkMode,
   session,
-  showToast
+  showToast,
+  onProfileUpdate
 }) => {
   const [perfil, setPerfil] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +47,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
       setIsLoading(true);
       const data = await getMiPerfil();
       setPerfil(data);
+      if (onProfileUpdate) onProfileUpdate(data);
       setNombreCompleto(data.nombreCompleto || session.fullName || '');
       setApodo(data.apodo || '');
       setPuestoTrabajo(data.puestoTrabajo || '');
@@ -66,6 +69,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
         biografia
       });
       setPerfil(res);
+      if (onProfileUpdate) onProfileUpdate(res);
       setIsEditing(false);
       showToast('success', 'Perfil actualizado');
     } catch (err) {
@@ -79,6 +83,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
     try {
       const res = await updateEstado(estado);
       setPerfil(res);
+      if (onProfileUpdate) onProfileUpdate(res);
       showToast('success', 'Estado actualizado');
     } catch (err) {
       showToast('error', 'Error al actualizar estado');
@@ -97,10 +102,12 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
           setIsUploadingAvatar(true);
           const res = await uploadAvatar(base64);
           setPerfil(res);
+          if (onProfileUpdate) onProfileUpdate(res);
         } else {
           setIsUploadingPortada(true);
           const res = await uploadPortada(base64);
           setPerfil(res);
+          if (onProfileUpdate) onProfileUpdate(res);
         }
         showToast('success', 'Imagen actualizada con éxito');
       } catch (err) {

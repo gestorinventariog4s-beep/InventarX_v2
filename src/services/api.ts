@@ -2,13 +2,15 @@
 import type { AuditLog } from '../types';
 
 // Carga logs de auditoría entre dos fechas (ISO string)
-export const fetchAuditLogs = (
+export const fetchAuditLogs = async (
   from: string,
   to: string,
   session: AuthResponse | null,
   onLogout: () => void
-) =>
-  authFetch<AuditLog[]>(`/api/v1/auditoria/global?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
+): Promise<AuditLog[]> => {
+  const res = await authFetch<any>(`/api/v1/auditoria/global?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
+  return Array.isArray(res) ? res : (res.data || []);
+};
 import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';

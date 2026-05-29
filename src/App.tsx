@@ -27,10 +27,11 @@ import {
   updateUser,
   updateInventoryProduct,
   fetchAuditLogs,
+  getMiPerfil,
 } from './services/api';
 import { fetchInventoryMovements } from './services/inventoryMovements';
 
-import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload, InventoryMovement, DashboardDemandResponse } from './types';
+import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload, InventoryMovement, DashboardDemandResponse, UserProfile } from './types';
 
 // ==========================================
 // CONSTANTES GLOBALES (Declaradas una sola vez)
@@ -103,6 +104,7 @@ function App() {
   // ==========================================
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [session, setSession] = useState<AuthResponse | null>(() => readSession());
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeModule, setActiveModule] = useState<ModuleId>('resumen');
   const [isLoading, setIsLoading] = useState(initialPublicReceptionState.isPublicReception);
   const [publicReceptionState, setPublicReceptionState] = useState(initialPublicReceptionState);
@@ -123,6 +125,25 @@ function App() {
   const [auditFrom, setAuditFrom] = useState('');
   const [auditTo, setAuditTo] = useState('');
   const [auditLoading, setAuditLoading] = useState(false);
+
+  // ==========================================
+  // EFECTOS GLOBALES
+  // ==========================================
+  useEffect(() => {
+    if (session) {
+      getMiPerfil().then((perfil) => {
+        setUserProfile(perfil);
+        localStorage.setItem('gestion-dotacion-last-user', JSON.stringify({
+          username: session.username,
+          fullName: perfil.nombreCompleto || session.fullName,
+          puestoTrabajo: perfil.puestoTrabajo || session.role,
+          fotoAvatar: perfil.fotoAvatar || null
+        }));
+      }).catch(console.error);
+    } else {
+      setUserProfile(null);
+    }
+  }, [session]);
 
   // ==========================================
   // UTILIDADES GLOBALES
@@ -558,14 +579,15 @@ function App() {
       <Header 
         activeModule={activeModule} 
         setActiveModule={setActiveModule} 
-        session={session} 
+        session={session}
+        userProfile={userProfile}
         onLogout={handleLogout} 
         isDarkMode={isDarkMode}
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         onOpenProfile={() => setIsProfileOpen(true)}
       />
 
-      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-32 max-lg:pt-28 pb-10">
+      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-24 max-lg:pt-20 pb-10">
         {activeModule === 'resumen' && (
           <DashboardModule 
             products={inventoryProducts} 
@@ -677,6 +699,7 @@ function App() {
         isDarkMode={isDarkMode} 
         session={session} 
         showToast={showToast} 
+        onProfileUpdate={setUserProfile}
       />
 
       <BottomToast toast={toast} />

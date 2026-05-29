@@ -1,7 +1,7 @@
 import React from 'react';
 import { Package, LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ModuleId, AuthResponse } from '../types';
+import { ModuleId, AuthResponse, UserProfile } from '../types';
 
 interface HeaderProps {
   activeModule: ModuleId;
@@ -11,6 +11,7 @@ interface HeaderProps {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   onOpenProfile?: () => void;
+  userProfile?: UserProfile | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   isDarkMode,
   toggleDarkMode,
-  onOpenProfile
+  onOpenProfile,
+  userProfile
 }) => {
   const navItems = [
     { id: 'resumen' as ModuleId, label: 'Panel', icon: Activity },
@@ -85,13 +87,31 @@ export const Header: React.FC<HeaderProps> = ({
               {isDarkMode ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
             </motion.button>
   
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={onOpenProfile}
-              className="text-right hidden sm:block px-4 py-1 border-l border-slate-200 dark:border-white/10 hover:opacity-70 transition-opacity cursor-pointer focus:outline-none"
+              className={`hidden sm:flex items-center gap-3 pl-4 pr-2 py-1.5 border-l transition-all cursor-pointer focus:outline-none rounded-xl group ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50'}`}
             >
-              <p className={`text-sm font-black leading-none ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{session.fullName?.split(' ')[0] || session.username}</p>
-              <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-1.5 opacity-70">{session.role}</p>
-            </button>
+              <div className="text-right">
+                <p className={`text-sm font-black leading-none transition-colors ${isDarkMode ? 'text-white group-hover:text-blue-400' : 'text-slate-950 group-hover:text-blue-600'}`}>
+                  {userProfile?.nombreCompleto?.split(' ')[0] || session.fullName?.split(' ')[0] || session.username}
+                </p>
+                <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-1.5 opacity-80">
+                  {userProfile?.puestoTrabajo || session.role}
+                </p>
+              </div>
+              <div className="relative">
+                {userProfile?.fotoAvatar ? (
+                  <img src={userProfile.fotoAvatar} alt="Avatar" className="w-10 h-10 rounded-xl object-cover shadow-md border border-slate-200 dark:border-white/10" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-black shadow-md">
+                    {(userProfile?.nombreCompleto || session.fullName || session.username).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+              </div>
+            </motion.button>
   
             <motion.button
               whileHover={{ scale: 1.1, backgroundColor: '#e11d48', color: '#fff' }}

@@ -35,6 +35,7 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
   const [showForgotMsg, setShowForgotMsg] = useState(false);
   const [internalUser, setInternalUser] = useState('');
   const [internalPass, setInternalPass] = useState('');
+  const [cachedUser, setCachedUser] = useState<{username: string, fullName: string, puestoTrabajo: string, fotoAvatar: string | null} | null>(null);
 
   const resolvedUser = loginUser ?? internalUser;
   const resolvedPass = loginPass ?? internalPass;
@@ -45,7 +46,17 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
     if (!loginUser && !internalUser) {
       const remembered = localStorage.getItem('gestion-dotacion-last-user');
       if (remembered) {
-        setInternalUser(remembered);
+        try {
+          const parsed = JSON.parse(remembered);
+          if (parsed.username) {
+            setCachedUser(parsed);
+            setInternalUser(parsed.username);
+          } else {
+            setInternalUser(remembered);
+          }
+        } catch (e) {
+          setInternalUser(remembered);
+        }
       }
     }
   }, []);
@@ -68,7 +79,9 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
 
   const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (resolvedUser) {
+    if (resolvedUser && !cachedUser) {
+      // Si no hay cached user, guardamos solo el string por ahora,
+      // App.tsx se encargará de guardar el JSON correcto cuando cargue el perfil.
       localStorage.setItem('gestion-dotacion-last-user', resolvedUser);
     }
     if (typeof onSubmit === 'function') {
@@ -125,20 +138,52 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
             </div>
 
             <form onSubmit={handleStandardSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador</label>
-                <div className="relative group">
-                  <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" size={18} />
-                  <input
-                    type="text"
-                    className="w-full bg-slate-50/50 border border-slate-100 rounded-[1.2rem] py-4 pl-12 pr-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all font-bold text-xs"
-                    placeholder="Documento o Usuario"
-                    value={resolvedUser}
-                    onChange={(e) => updateUser(e.target.value)}
-                    required
-                  />
+              {!cachedUser ? (
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador</label>
+                  <div className="relative group">
+                    <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" size={18} />
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50/50 border border-slate-100 rounded-[1.2rem] py-4 pl-12 pr-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all font-bold text-xs"
+                      placeholder="Documento o Usuario"
+                      value={resolvedUser}
+                      onChange={(e) => updateUser(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-slate-50/60 border border-slate-100 rounded-[2rem] p-6 flex flex-col items-center text-center relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent pointer-events-none" />
+                  <div className="relative w-24 h-24 rounded-[1.5rem] bg-white shadow-xl shadow-blue-900/5 flex items-center justify-center p-1 mb-4">
+                    {cachedUser.fotoAvatar ? (
+                      <img src={cachedUser.fotoAvatar} alt="Avatar" className="w-full h-full rounded-[1.2rem] object-cover" />
+                    ) : (
+                      <div className="w-full h-full rounded-[1.2rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-3xl font-black">
+                        {cachedUser.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1">{cachedUser.fullName}</h3>
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{cachedUser.puestoTrabajo}</p>
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setCachedUser(null);
+                      setInternalUser('');
+                      localStorage.removeItem('gestion-dotacion-last-user');
+                    }}
+                    className="mt-6 text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-widest"
+                  >
+                    Ingresar con otra cuenta
+                  </button>
+                </motion.div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
