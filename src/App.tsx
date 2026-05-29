@@ -565,7 +565,7 @@ function App() {
         onOpenProfile={() => setIsProfileOpen(true)}
       />
 
-      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-12 max-lg:pt-6">
+      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-32 max-lg:pt-28 pb-10">
         {activeModule === 'resumen' && (
           <DashboardModule 
             products={inventoryProducts} 

@@ -8,7 +8,7 @@ export const fetchAuditLogs = (
   session: AuthResponse | null,
   onLogout: () => void
 ) =>
-  authFetch<AuditLog[]>(`/api/audit/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
+  authFetch<AuditLog[]>(`/api/v1/auditoria/global?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
 import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';
