@@ -317,6 +317,23 @@ export const QrReceptionPortal: React.FC = () => {
                   </div>
 
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 border border-dashed border-slate-200 dark:border-slate-700 flex flex-col justify-between min-h-[300px]">
+                    <div className="mb-6">
+                      <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
+                        <div className="relative flex items-center justify-center mt-0.5">
+                          <input 
+                            type="checkbox"
+                            checked={profile.consentimientoData || false}
+                            onChange={(e) => setProfile({ ...profile, consentimientoData: e.target.checked })}
+                            className="peer appearance-none w-5 h-5 border-2 border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 checked:bg-blue-600 checked:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all cursor-pointer"
+                          />
+                          <CheckCircle2 size={14} className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" strokeWidth={3} />
+                        </div>
+                        <span className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 font-medium leading-tight">
+                          Acepto de forma expresa, libre y voluntaria el <strong className="text-blue-600 dark:text-blue-400 cursor-help" title="Conforme a la Ley de Protección de Datos Personales y Habeas Data.">tratamiento de mis datos personales y biométricos</strong> para fines del registro, entrega y auditoría de mi dotación laboral, autorizando a la compañía a conservar esta evidencia.
+                        </span>
+                      </label>
+                    </div>
+
                     <div>
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
