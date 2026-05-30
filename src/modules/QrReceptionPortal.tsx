@@ -453,11 +453,13 @@ export const QrReceptionPortal: React.FC = () => {
                                 .map(p => {
                                   let sizes = ["M"];
                                   if (Array.isArray(p.tallas) && p.tallas.length > 0) {
-                                    sizes = p.tallas;
+                                    sizes = p.tallas.map((t: any) => typeof t === 'object' && t.talla ? t.talla : String(t));
                                   } else if (p.tallas && typeof p.tallas === 'string') {
                                     try {
                                       const parsed = JSON.parse(p.tallas);
-                                      if (Array.isArray(parsed) && parsed.length > 0) sizes = parsed;
+                                      if (Array.isArray(parsed) && parsed.length > 0) {
+                                        sizes = parsed.map((t: any) => typeof t === 'object' && t.talla ? t.talla : String(t));
+                                      }
                                     } catch(e) {
                                       sizes = p.tallas.split(",").map((s: string) => s.trim());
                                     }
