@@ -561,10 +561,11 @@ export const deleteUser = (id: string | number, session: AuthResponse | null, on
   });
 
 export interface EmployeeProfile {
-  fullName: string;
   document: string;
+  fullName: string;
   email: string;
   cargo: string;
+  consentimientoData?: boolean;
 }
 
 export const getPendingEmployees = async (session: AuthResponse | null, onLogout: () => void) => {
