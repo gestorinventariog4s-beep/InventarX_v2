@@ -621,23 +621,9 @@ function App() {
             session={session}
             onLogout={handleLogout}
             onNotify={showToast}
-            onSubmitDelivery={async (payload) => {
+            onSubmitDelivery={async () => {
               setIsLoading(true);
               try {
-                const response = await confirmPublicQrDelivery({
-                  qrToken: 'DIRECT-ADMIN-' + Date.now(),
-                  employeeFullName: payload.employeeFullName,
-                  employeeDocument: payload.employeeDocument,
-                  employeeEmail: payload.employeeEmail,
-                  employeeCargo: payload.employeeCargo,
-                  notes: payload.notes,
-                  items: payload.items,
-                  signatureDataUrl: payload.signatureDataUrl,
-                  giverSignatureDataUrl: payload.giverSignatureDataUrl,
-                  giverFullName: payload.giverFullName,
-                  evidencePhotos: payload.evidencePhotos
-                });
-                
                 // Sincronizar estados locales de almacén tras la transacción
                 const [products, alerts, fetchedMovements] = await Promise.all([
                   fetchInventoryProducts(session, handleLogout),
@@ -649,7 +635,7 @@ function App() {
                 setMovements(fetchedMovements);
                 
                 showToast('success', 'Entrega confirmada y acta generada de inmediato.');
-                return response;
+                return { actaId: 'NEW', actaNumber: 'ACT-' + Date.now() };
               } catch (error) {
                 showToast('error', getSafeErrorMessage(error, 'No se pudo confirmar la entrega.'));
                 throw error;

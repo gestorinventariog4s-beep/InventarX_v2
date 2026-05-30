@@ -101,24 +101,25 @@ export const QrReceptionPortal: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      await api.saveEmployee(profile);
-
-      // Save/Update pending delivery request
       const itemsPayload = Object.entries(portalCart)
         .filter(([, val]) => val.quantity > 0)
         .map(([id, val]) => ({
-          productId: Number(id),
-          quantity: val.quantity,
+          productoId: id,
+          cantidad: val.quantity,
           talla: val.talla
         }));
 
-      if (itemsPayload.length > 0) {
-        const savedPending = await api.savePendingDelivery(profile.document, itemsPayload);
-        setPendingDelivery(savedPending);
-      } else {
-        setPendingDelivery(null);
-      }
+      const solicitud = await api.crearSolicitudDotacion({
+        qrTokenId: 'token-placeholder', // In a real flow, this would come from the QR code (URL param)
+        sedeId: 'sede-principal-01',
+        receptorDocumento: profile.document,
+        receptorNombre: profile.fullName,
+        receptorArea: profile.cargo,
+        consentimientoData: true,
+        items: itemsPayload
+      });
 
+      setPendingDelivery(solicitud);
       setMessage({ type: 'success', text: 'Perfil y solicitud de dotación guardados correctamente.' });
       setStep(3);
     } catch (error) {
@@ -144,14 +145,16 @@ export const QrReceptionPortal: React.FC = () => {
     return () => clearInterval(interval);
   }, [step, profile.document]);
 
+
+
   const handleSignSession = async () => {
     if (!activeSession || !employeeSignature) return;
     setIsLoading(true);
     try {
-      await api.employeeSignSession(activeSession.id, employeeSignature);
-      setMessage({ type: 'success', text: 'Firma enviada correctamente.' });
+      await api.employeeSignSession(activeSession.id.toString(), employeeSignature);
+      setStep(5);
     } catch (e) {
-      setMessage({ type: 'error', text: 'Error al enviar la firma.' });
+      setMessage({ type: 'error', text: 'No se pudo firmar la entrega.' });
     } finally {
       setIsLoading(false);
     }

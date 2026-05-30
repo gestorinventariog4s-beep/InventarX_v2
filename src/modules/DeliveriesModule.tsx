@@ -109,43 +109,48 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       let pending: any = null;
       try {
         pending = await api.getPendingDelivery(profile.document);
-        if (pending) {
-          setPendingDelivery(pending);
-          const newCart: Record<number, { quantity: number; talla: string }> = {};
-          pending.items.forEach((item: any) => {
-            newCart[item.product.id] = {
-              quantity: item.quantity,
-              talla: item.talla || item.product.talla || 'M'
+        if (!pending) throw new Error("No pending");
+        setPendingDelivery(pending);
+        const newCart: Record<number, { quantity: number; talla: string }> = {};
+        if (pending.detalles) {
+          pending.detalles.forEach((item: any) => {
+            const prodId = Number(item.productoId) || item.productoId;
+            newCart[prodId] = {
+              quantity: item.cantidad,
+              talla: item.talla || 'M'
             };
           });
-          setCart(newCart);
-        } else {
-          setPendingDelivery(null);
-          setCart({});
         }
+        setCart(newCart);
       } catch (err) {
         console.error("Error loading pending delivery:", err);
-        setPendingDelivery(null);
+        throw new Error("El colaborador no ha iniciado una solicitud a través del código QR. Por favor indíquele que escanee el código en la entrada.");
       }
       
       setStep(2);
       // Start a live session
-      const sess = await api.startDeliverySession(profile.document);
-      setCurrentSession(sess);
-
-      // Sync initial cart to session immediately if there is a pending delivery
-      if (sess && pending) {
-        const selected = pending.items.map((item: any) => {
-          const product = products.find(p => p.id === item.product.id);
-          return {
-            productId: item.product.id,
-            name: product ? product.name : `Ítem #${item.product.id}`,
-            talla: product ? product.talla : 'N/A',
-            quantity: item.quantity
-          };
-        });
-        await api.updateSessionItems(sess.id, JSON.stringify(selected));
-      }
+      const sess = await api.iniciarEntregaAdmin(pending.id, session?.username || 'admin', session || null, onLogout || (() => {}));
+      
+      // Adapt session to frontend format
+      const adaptedSession = {
+        id: sess.id,
+        employeeDocument: sess.receptorDocumento,
+        status: sess.estado === 'PENDIENTE_DESPACHO' ? 'CREATED' :
+                sess.estado === 'EN_PROCESO' ? 'EVIDENCE_READY' :
+                sess.estado === 'ESPERANDO_RECEPTOR' ? 'SIGNED' :
+                sess.estado === 'ENTREGADO' ? 'COMPLETED' : 'ABANDONED',
+        itemsJson: JSON.stringify((sess.detalles || []).map((d: any) => ({
+          productId: Number(d.productoId) || d.productoId,
+          quantity: d.cantidad,
+          talla: d.talla,
+          name: d.producto?.nombre || `Ítem #${d.productoId}`
+        }))),
+        photosJson: '[]',
+        giverSignature: '', 
+        giverFullName: session?.fullName || session?.username || 'Administrador'
+      };
+      
+      setCurrentSession(adaptedSession as any);
     } catch (e) {
       setError("Colaborador no encontrado. Asegúrese que el colaborador se haya registrado en el portal.");
     } finally {
@@ -205,7 +210,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
         });
       
       try {
-        await api.updateSessionItems(currentSession.id, JSON.stringify(selected));
+        await api.updateSessionItemsAdmin(currentSession.id.toString(), selected, session || null, onLogout || (() => {}));
       } catch (err) {
         console.error('Error updating session items:', err);
       }
@@ -1121,7 +1126,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                             });
                            
                            if (currentSession) {
-                              await api.completeDeliverySession(currentSession.id);
+                              await api.employeeSignSession(currentSession.id.toString(), signatureDataUrl);
                            }
                            
                            const actaData = {

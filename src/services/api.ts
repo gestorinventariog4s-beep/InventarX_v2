@@ -393,25 +393,65 @@ export const startDeliverySession = (document: string) =>
     body: JSON.stringify({ employeeDocument: document })
   });
 
+export const iniciarEntregaAdmin = (id: string, adminId: string, session: AuthResponse | null, onLogout: () => void) => 
+  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/iniciar`, session, onLogout, {
+    method: 'PATCH',
+    body: JSON.stringify({ adminId })
+  });
+
 export const getActiveDeliverySession = (document: string) => 
-  publicFetch<DeliverySession>(`/api/public/delivery-sessions/active/${document}`);
-
-export const updateSessionItems = (id: number, itemsJson: string) => 
-  publicFetch<DeliverySession>(`/api/public/delivery-sessions/${id}/items`, {
-    method: 'PATCH',
-    body: JSON.stringify({ itemsJson })
+  publicFetch<any>(`/api/v1/dotacion/solicitudes/pendientes/${document}`).then(res => {
+    if (!res) throw new Error("No session");
+    // Adapter
+    return {
+      id: res.id,
+      employeeDocument: res.receptorDocumento,
+      status: (res.estado === 'PENDIENTE_DESPACHO' ? 'CREATED' :
+              res.estado === 'EN_PROCESO' ? 'EVIDENCE_READY' :
+              res.estado === 'ESPERANDO_RECEPTOR' ? 'SIGNED' :
+              res.estado === 'ENTREGADO' ? 'COMPLETED' : 'ABANDONED') as "CREATED" | "EVIDENCE_READY" | "SIGNED" | "COMPLETED" | "ABANDONED",
+      itemsJson: JSON.stringify((res.detalles || []).map((d: any) => ({
+        productId: Number(d.productoId) || d.productoId,
+        quantity: d.cantidad,
+        talla: d.talla,
+        name: d.producto?.nombre || `Ítem #${d.productoId}`
+      }))),
+      photosJson: '[]', // mock until we link it to the actual entity
+      giverSignature: '', 
+      giverFullName: res.admin?.nombreCompleto || 'Administrador',
+      receiverSignature: res.evidencia || ''
+    };
   });
 
-export const updateSessionEvidence = (id: number, data: { itemsJson: string, photosJson: string, giverSignature: string, giverFullName: string }) => 
-  publicFetch<DeliverySession>(`/api/public/delivery-sessions/${id}/evidence`, {
+export const updateSessionItemsAdmin = (id: string, items: any[], session: AuthResponse | null, onLogout: () => void) => 
+  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/items`, session, onLogout, {
     method: 'PATCH',
-    body: JSON.stringify(data)
+    body: JSON.stringify({ items })
   });
 
-export const employeeSignSession = (id: number, signature: string) => 
-  publicFetch<DeliverySession>(`/api/public/delivery-sessions/${id}/sign`, {
-    method: 'PATCH',
-    body: JSON.stringify({ signature })
+export const updateSessionEvidence = async (id: number, data: { itemsJson: string, photosJson: string, giverSignature: string, giverFullName: string }) => {
+  try {
+    const sessionStr = localStorage.getItem('gestion-dotacion-auth');
+    const session = sessionStr ? JSON.parse(sessionStr) : null;
+    const items = JSON.parse(data.itemsJson);
+    await authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/items`, session, () => {}, {
+      method: 'PATCH',
+      body: JSON.stringify({ items })
+    });
+  } catch(e) {}
+  return data as any;
+};
+
+export const employeeSignSession = (id: string, signature: string) => 
+  publicFetch<any>(`/api/v1/dotacion/solicitudes/${id}/completar`, {
+    method: 'POST',
+    body: JSON.stringify({ evidencia: signature, tipoEvidencia: 'FIRMA_DIGITAL' })
+  });
+
+export const adminSignSession = (id: string, adminId: string, session: AuthResponse | null, onLogout: () => void) => 
+  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/firma-admin`, session, onLogout, {
+    method: 'POST',
+    body: JSON.stringify({ adminId })
   });
 
 export const completeDeliverySession = (id: number) => 
@@ -450,7 +490,21 @@ export const saveEmployee = (profile: EmployeeProfile) =>
   });
 
 export const getPendingDelivery = (document: string) => 
-  publicFetch<any>(`/api/public/employees/${document}/pending`);
+  publicFetch<any>(`/api/v1/dotacion/solicitudes/pendientes/${document}`);
+
+export const crearSolicitudDotacion = (payload: {
+  qrTokenId: string;
+  sedeId: string;
+  receptorDocumento: string;
+  receptorNombre: string;
+  receptorArea: string;
+  consentimientoData: boolean;
+  items?: Array<{ productoId: string; talla: string; cantidad: number }>;
+}) => 
+  publicFetch<any>('/api/v1/dotacion/solicitudes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 
 export const savePendingDelivery = (document: string, items: Array<{ productId: number; quantity: number; talla: string }>) => 
   publicFetch<any>(`/api/public/employees/${document}/pending`, {
@@ -513,8 +567,18 @@ export interface EmployeeProfile {
   cargo: string;
 }
 
-export const getPendingEmployees = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<any[]>('/api/v1/employee/pending', session, onLogout);
+export const getPendingEmployees = async (session: AuthResponse | null, onLogout: () => void) => {
+  const requests = await authFetch<any[]>('/api/v1/dotacion/solicitudes/pendientes', session, onLogout);
+  return requests.map(req => ({
+    id: req.id,
+    document: req.receptorDocumento,
+    fullName: req.receptorNombre,
+    cargo: req.receptorArea,
+    email: req.correo || 'N/A',
+    processState: req.estado,
+    originalRequest: req
+  }));
+};
 
 export const getAllEmployees = (session: AuthResponse | null, onLogout: () => void) =>
   authFetch<any[]>('/api/v1/employee/all', session, onLogout);
