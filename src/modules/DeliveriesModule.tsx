@@ -131,7 +131,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       
       setStep(2);
       // Start a live session
-      const sess = await api.iniciarEntregaAdmin(pending.id, session?.username || 'admin', session || null, onLogout || (() => {}));
+      const sess = await api.iniciarEntregaAdmin(pending.id, session?.id || null, session || null, onLogout || (() => {}));
       
       // Adapt session to frontend format
       const adaptedSession = {

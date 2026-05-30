@@ -110,6 +110,12 @@ export const QrReceptionPortal: React.FC = () => {
           talla: val.talla
         }));
 
+      if (itemsPayload.length === 0) {
+        setMessage({ type: 'error', text: 'Debe seleccionar al menos un artículo de dotación.' });
+        setIsLoading(false);
+        return;
+      }
+
       const solicitud = await api.crearSolicitudDotacion({
         qrTokenId: 'token-placeholder', // In a real flow, this would come from the QR code (URL param)
         sedeId: 'sede-principal-01',

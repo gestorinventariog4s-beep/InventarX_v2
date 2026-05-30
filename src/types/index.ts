@@ -2,6 +2,7 @@ export type UserRole = 'ADMINISTRADOR' | 'OPERADOR' | 'AUDITOR';
 export type ModuleId = 'resumen' | 'inventario' | 'entregas' | 'qr' | 'reportes' | 'auditoria' | 'usuarios';
 
 export interface AuthResponse {
+  id: string;
   token: string;
   username: string;
   fullName: string;

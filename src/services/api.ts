@@ -407,7 +407,7 @@ export const startDeliverySession = (document: string) =>
     body: JSON.stringify({ employeeDocument: document })
   });
 
-export const iniciarEntregaAdmin = (id: string, adminId: string, session: AuthResponse | null, onLogout: () => void) => 
+export const iniciarEntregaAdmin = (id: string, adminId: string | null, session: AuthResponse | null, onLogout: () => void) => 
   authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/iniciar`, session, onLogout, {
     method: 'PATCH',
     body: JSON.stringify({ adminId })
