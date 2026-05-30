@@ -33,7 +33,7 @@ export const QrReceptionPortal: React.FC = () => {
   const [pendingDelivery, setPendingDelivery] = useState<any>(null);
   const [activeSession, setActiveSession] = useState<api.DeliverySession | null>(null);
   const [products, setProducts] = useState<any[]>([]);
-  const [portalCart, setPortalCart] = useState<Record<number, { quantity: number; talla: string }>>({});
+  const [portalCart, setPortalCart] = useState<Record<string, { quantity: number; talla: string }>>({});
   const [isEditingCart, setIsEditingCart] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [employeeSignature, setEmployeeSignature] = useState('');
@@ -404,12 +404,12 @@ export const QrReceptionPortal: React.FC = () => {
 
                       {!isEditingCart ? (
                         /* Summary View */
-                        Object.keys(portalCart).filter(id => portalCart[Number(id)].quantity > 0).length > 0 ? (
+                        Object.keys(portalCart).filter(id => (portalCart as any)[id].quantity > 0).length > 0 ? (
                           <div className="space-y-3">
                             {Object.entries(portalCart)
                               .filter(([, val]) => val.quantity > 0)
                               .map(([id, val]) => {
-                                const p = products.find(prod => prod.id === Number(id));
+                                const p = products.find(prod => String(prod.id) === String(id));
                                 return (
                                   <div key={id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:scale-101">
                                     <div>
