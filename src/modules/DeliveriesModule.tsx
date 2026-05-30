@@ -24,6 +24,7 @@ import * as api from '../services/api';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ActaReportPDF } from '../components/ActaReportPDF';
 import type { ToastType } from '../components/BottomToast';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 interface DeliveriesModuleProps {
   products: Product[];
@@ -61,6 +62,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [generatedActa, setGeneratedActa] = useState<any>(null);
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean; empId: number | null}>({isOpen: false, empId: null});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingDelivery, setPendingDelivery] = useState<any>(null);
   const [isLoadingPending, setIsLoadingPending] = useState(false);
@@ -158,9 +160,15 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     }
   };
 
-  const handleRemovePendingEmployee = async (empId: number, e: React.MouseEvent) => {
+  const requestRemovePendingEmployee = (empId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm("¿Está seguro que desea eliminar a este colaborador de la lista de espera?")) return;
+    setConfirmConfig({ isOpen: true, empId });
+  };
+
+  const executeRemovePendingEmployee = async () => {
+    if (confirmConfig.empId === null) return;
+    const empId = confirmConfig.empId;
+    setConfirmConfig({ isOpen: false, empId: null });
     try {
       await api.updateEmployeeState(empId, 'INICIAL', session || null, onLogout || (() => {}));
       setPendingEmployees(prev => prev.filter(emp => emp.id !== empId));
@@ -697,7 +705,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                                       )}
                                       
                                       <button
-                                        onClick={(e) => handleRemovePendingEmployee(emp.id, e)}
+                                        onClick={(e) => requestRemovePendingEmployee(emp.id, e)}
                                         title="Eliminar de Espera"
                                         className="w-7 h-7 rounded-xl bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/10 dark:text-rose-450 flex items-center justify-center hover:shadow-md hover:shadow-rose-500/10 transition-all"
                                       >
@@ -1266,6 +1274,17 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title="¿Remover Colaborador?"
+        message="¿Está seguro que desea eliminar a este colaborador de la lista de espera? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDestructive={true}
+        onConfirm={executeRemovePendingEmployee}
+        onCancel={() => setConfirmConfig({ isOpen: false, empId: null })}
+      />
     </div>
   );
 };

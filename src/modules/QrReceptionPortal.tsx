@@ -15,7 +15,8 @@ import {
   Eraser,
   PenLine,
   Image as ImageIcon,
-  Lock
+  Lock,
+  AlertTriangle
 } from 'lucide-react';
 import * as api from '../services/api';
 
@@ -124,6 +125,21 @@ export const QrReceptionPortal: React.FC = () => {
       setStep(3);
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Error al guardar el perfil y la solicitud.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelPending = async () => {
+    if (!pendingDelivery?.id) return;
+    setIsLoading(true);
+    try {
+      await api.cancelarSolicitudDotacion(pendingDelivery.id);
+      setPendingDelivery(null);
+      setPortalCart({});
+      setMessage({ type: 'success', text: 'Solicitud anterior cancelada. Puedes crear una nueva.' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Error al cancelar la solicitud.' });
     } finally {
       setIsLoading(false);
     }
@@ -262,6 +278,34 @@ export const QrReceptionPortal: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-10"
               >
+                {pendingDelivery && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/50 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400">
+                        <AlertTriangle size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-amber-900 dark:text-amber-100">Solicitud en Curso Detectada</h3>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">Puedes continuar con el seguimiento o cancelarla para crear otra.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setStep(3)}
+                        className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors"
+                      >
+                        Continuar
+                      </button>
+                      <button 
+                        onClick={handleCancelPending}
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-white dark:bg-slate-800 text-rose-600 hover:bg-rose-50 border border-rose-100 dark:border-rose-900/30 rounded-xl text-xs font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-600">

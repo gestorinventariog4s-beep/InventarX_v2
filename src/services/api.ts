@@ -520,6 +520,11 @@ export const crearSolicitudDotacion = (payload: {
     body: JSON.stringify(payload),
   });
 
+export const cancelarSolicitudDotacion = (id: string) =>
+  publicFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, {
+    method: 'PATCH',
+  });
+
 export const savePendingDelivery = (document: string, items: Array<{ productId: number; quantity: number; talla: string }>) => 
   publicFetch<any>(`/api/public/employees/${document}/pending`, {
     method: 'POST',
