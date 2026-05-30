@@ -499,10 +499,10 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
               <motion.div key="user" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                 <div className="flex items-center gap-4">
                    <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl font-black shadow-lg">
-                     {employeeProfile.fullName.charAt(0)}
+                     {(employeeProfile.fullName || '?').charAt(0).toUpperCase()}
                    </div>
                    <div className="flex-1 min-w-0">
-                     <p className="text-blue-900 dark:text-white font-black text-base leading-tight truncate">{employeeProfile.fullName}</p>
+                     <p className="text-blue-900 dark:text-white font-black text-base leading-tight truncate">{employeeProfile.fullName || 'Colaborador Desconocido'}</p>
                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{employeeProfile.document}</p>
                    </div>
                 </div>
