@@ -122,8 +122,8 @@ export const QrReceptionPortal: React.FC = () => {
       setPendingDelivery(solicitud);
       setMessage({ type: 'success', text: 'Perfil y solicitud de dotación guardados correctamente.' });
       setStep(3);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Error al guardar el perfil y la solicitud.' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Error al guardar el perfil y la solicitud.' });
     } finally {
       setIsLoading(false);
     }

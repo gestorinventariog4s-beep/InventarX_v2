@@ -175,12 +175,19 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
   }
 
   if (!response.ok) {
-    const payload: unknown = await response.json().catch(() => null);
+    let payload: unknown = null;
+    try {
+      const text = await response.text();
+      payload = text ? JSON.parse(text) : null;
+    } catch (e) {}
     throw new Error(parseApiError(payload, 'No se pudo completar la solicitud.'));
   }
 
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  
+  const text = await response.text();
+  if (!text) return null as unknown as T;
+  return JSON.parse(text) as T;
 };
 
 export const downloadFile = async (path: string, filename: string, session: AuthResponse | null) => {
@@ -260,12 +267,19 @@ export const publicFetch = async <T>(path: string, options?: globalThis.RequestI
   });
 
   if (!response.ok) {
-    const payload: unknown = await response.json().catch(() => null);
+    let payload: unknown = null;
+    try {
+      const text = await response.text();
+      payload = text ? JSON.parse(text) : null;
+    } catch (e) {}
     throw new Error(parseApiError(payload, 'No se pudo completar la solicitud.'));
   }
 
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  
+  const text = await response.text();
+  if (!text) return null as unknown as T;
+  return JSON.parse(text) as T;
 };
 
 export const fetchPublicProducts = async () => {
