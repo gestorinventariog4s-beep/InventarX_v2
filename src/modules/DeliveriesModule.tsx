@@ -126,7 +126,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
         setCart(newCart);
       } catch (err) {
         console.error("Error loading pending delivery:", err);
-        throw new Error("El colaborador no ha iniciado una solicitud a través del código QR. Por favor indíquele que escanee el código en la entrada.");
+        throw new Error("El colaborador está en la plataforma, pero aún no ha seleccionado los productos ni enviado la solicitud.");
       }
       
       setStep(2);
@@ -153,8 +153,9 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       };
       
       setCurrentSession(adaptedSession as any);
-    } catch (e) {
-      setError("Colaborador no encontrado. Asegúrese que el colaborador se haya registrado en el portal.");
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "Error al iniciar la entrega. Verifica si la solicitud ya está en proceso.");
     } finally {
       setIsLoadingPending(false);
     }
@@ -167,15 +168,15 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
 
   const executeRemovePendingEmployee = async () => {
     if (confirmConfig.empId === null) return;
-    const empId = confirmConfig.empId;
+    const empId = confirmConfig.empId as any;
     setConfirmConfig({ isOpen: false, empId: null });
     try {
-      await api.updateEmployeeState(empId, 'INICIAL', session || null, onLogout || (() => {}));
+      await api.cancelarSolicitudDotacion(empId);
       setPendingEmployees(prev => prev.filter(emp => emp.id !== empId));
-      if (onNotify) onNotify('success', 'Colaborador removido de la lista de espera.');
+      if (onNotify) onNotify('success', 'Solicitud anulada y removida de la lista.');
     } catch (err) {
       console.error("Error removing pending employee:", err);
-      if (onNotify) onNotify('error', 'No se pudo remover al colaborador de la lista de espera.');
+      if (onNotify) onNotify('error', 'No se pudo anular la solicitud. Intente nuevamente.');
     }
   };
 
