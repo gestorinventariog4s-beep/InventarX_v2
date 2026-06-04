@@ -12,7 +12,6 @@ import { ProfilePanel } from './components/ProfilePanel';
 import { TeamDirectory } from './components/TeamDirectory';
 import { BottomToast, type ToastState, type ToastType } from './components/BottomToast';
 import {
-  confirmPublicQrDelivery,
   createInventoryProduct,
   deleteInventoryProduct,
   downloadPublicActa,
@@ -29,6 +28,8 @@ import {
   updateInventoryProduct,
   fetchAuditLogs,
   getMiPerfil,
+  generarTokenQR,
+  crearSolicitudDotacion,
 } from './services/api';
 import { fetchInventoryMovements } from './services/inventoryMovements';
 
@@ -39,7 +40,7 @@ import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, Us
 // ==========================================
 const MOCK_PRODUCTS: Product[] = [
   {
-    id: 1,
+    id: 'mock-prod-1',
     name: 'Casco de Seguridad ABS',
     sku: 'EPI-001',
     type: 'EPP',
@@ -49,11 +50,11 @@ const MOCK_PRODUCTS: Product[] = [
     stockMinimo: 10,
     stockMaximo: 100,
     active: true,
-    category: { id: 1, name: 'Proteccion' },
-    sizeStocks: [{ id: 1, talla: 'L', stock: 45 }],
+    category: { id: 'mock-cat-1', name: 'Proteccion' },
+    sizeStocks: [{ id: 'mock-size-1', talla: 'L', stock: 45 }],
   },
   {
-    id: 2,
+    id: 'mock-prod-2',
     name: 'Guantes de Nitrilo',
     sku: 'EPI-002',
     type: 'EPP',
@@ -63,8 +64,8 @@ const MOCK_PRODUCTS: Product[] = [
     stockMinimo: 20,
     stockMaximo: 200,
     active: true,
-    category: { id: 2, name: 'Manos' },
-    sizeStocks: [{ id: 2, talla: 'M', stock: 5 }],
+    category: { id: 'mock-cat-2', name: 'Manos' },
+    sizeStocks: [{ id: 'mock-size-2', talla: 'M', stock: 5 }],
   },
 ];
 
@@ -438,7 +439,7 @@ function App() {
     }
   };
 
-  const handleEditInventoryProduct = async (id: number, payload: ProductPayload) => {
+  const handleEditInventoryProduct = async (id: string, payload: ProductPayload) => {
     if (!session) {
       showToast('error', 'Sesión no disponible.');
       return;
@@ -463,7 +464,7 @@ function App() {
     }
   };
 
-  const handleDeleteInventoryProduct = async (id: number, mode: 'soft' | 'hard') => {
+  const handleDeleteInventoryProduct = async (id: string, mode: 'soft' | 'hard') => {
     if (!session) {
       showToast('error', 'Sesión no disponible.');
       return;
@@ -500,17 +501,41 @@ function App() {
     employeeEmail: string;
     employeeCargo: string;
     notes: string;
-    items: Array<{ productId: number; quantity: number }>;
+    items: Array<{ productId: string; quantity: number }>;
     signatureDataUrl: string;
   }) => {
     setIsLoading(true);
     try {
-      const response = await confirmPublicQrDelivery(payload);
+      // 1. Generar token QR
+      const qrTokenData = await generarTokenQR('sede-principal-01');
+      
+      if (!qrTokenData?.id) {
+        throw new Error('No se pudo generar el token QR');
+      }
+
+      // 2. Crear solicitud de dotación con el token QR generado
+      const solicitudResponse = await crearSolicitudDotacion({
+        qrTokenId: qrTokenData.id,
+        sedeId: 'sede-principal-01',
+        receptorDocumento: payload.employeeDocument,
+        receptorNombre: payload.employeeFullName,
+        receptorArea: payload.employeeCargo,
+        consentimientoData: true,
+        items: payload.items.map(item => ({
+          productoId: item.productId,
+          cantidad: item.quantity,
+          talla: 'Estándar'
+        }))
+      });
+
       return {
-        actaId: response.actaId,
-        actaNumber: response.actaNumber,
-        employeeEmail: response.employeeEmail ?? payload.employeeEmail,
+        actaId: solicitudResponse.id,
+        actaNumber: solicitudResponse.id,
+        employeeEmail: payload.employeeEmail,
       };
+    } catch (error: any) {
+      showToast('error', `Error al crear solicitud: ${error.message}`);
+      throw error;
     } finally {
       setIsLoading(false);
     }

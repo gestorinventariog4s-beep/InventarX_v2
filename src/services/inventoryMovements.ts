@@ -1,8 +1,10 @@
-import type { InventoryMovement, AuthResponse } from '../types';
+import type { AuthResponse } from '../types';
 import { authFetch } from './api';
 
-export const fetchInventoryMovements = (
+export const fetchInventoryMovements = async (
   session: AuthResponse | null,
   onLogout: () => void
-) =>
-  authFetch<InventoryMovement[]>('/api/v1/inventario/movimientos', session, onLogout);
+) => {
+  const response: any = await authFetch('/api/v1/inventario/movimientos', session, onLogout);
+  return Array.isArray(response) ? response : (response.data || []);
+};

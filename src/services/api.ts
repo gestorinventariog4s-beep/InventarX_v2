@@ -1,17 +1,17 @@
 // --- AUDITORÍA ---
 import type { AuditLog } from '../types';
 
-// Carga logs de auditoría entre dos fechas (ISO string)
+// Carga logs de auditoría
 export const fetchAuditLogs = async (
-  from: string,
-  to: string,
+  _from: string,
+  _to: string,
   session: AuthResponse | null,
   onLogout: () => void
 ): Promise<AuditLog[]> => {
-  const res = await authFetch<any>(`/api/v1/auditoria/global?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, session, onLogout);
+  const res = await authFetch<any>(`/api/v1/auditoria/global?page=1&limit=100`, session, onLogout);
   return Array.isArray(res) ? res : (res.data || []);
 };
-import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, StockAlert, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
+import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -56,7 +56,7 @@ const writeSizeStockCache = (store: CachedSizeStockStore) => {
   }
 };
 
-const cacheSizeStocks = (productId: number | undefined, sku: string | undefined, sizeStocks: CachedSizeStock[]) => {
+const cacheSizeStocks = (productId: string | undefined, sku: string | undefined, sizeStocks: CachedSizeStock[]) => {
   if (!sizeStocks?.length) return;
   const normalized = normalizeSizeStocks(sizeStocks);
   const store = readSizeStockCache();
@@ -82,10 +82,11 @@ const parseLegacySizeStocks = (product: Product) => {
   if (rawTallas.length === 0) return [];
 
   const uniqueTallas = Array.from(new Set(rawTallas));
+  const baseId = String(product.id);
 
   // Legacy APIs may not provide stock by size. Preserve sizes but do not invent quantities.
   return uniqueTallas.map((talla, idx) => ({
-    id: -(product.id * 100 + idx + 1),
+    id: `${baseId}-size-${idx + 1}`,
     talla,
     stock: 0,
   }));
@@ -104,7 +105,9 @@ const normalizeProduct = (rawProduct: any): Product => {
     stockMinimo: rawProduct.stockMinimo ?? 0,
     stockMaximo: rawProduct.stockMaximo ?? 100,
     active: rawProduct.activo ?? rawProduct.active ?? true,
-    category: rawProduct.categoria ? { id: Date.now(), name: rawProduct.categoria, description: rawProduct.descripcion } : (rawProduct.category || { id: 0, name: 'General' }),
+    category: rawProduct.categoria
+      ? { id: String(rawProduct.categoriaId ?? rawProduct.categoria ?? Date.now()), name: rawProduct.categoria, description: rawProduct.descripcion }
+      : (rawProduct.category || { id: '0', name: 'General' }),
     sizeStocks: rawProduct.tallas || rawProduct.sizeStocks || []
   } as Product;
 
@@ -113,7 +116,7 @@ const normalizeProduct = (rawProduct: any): Product => {
     const normalized = normalizeSizeStocks(current.map((s) => ({ talla: s.talla, stock: s.stock })));
     cacheSizeStocks(p.id, p.sku, normalized);
     p.sizeStocks = normalized.map((s, idx) => ({
-      id: current[idx]?.id ?? -(p.id * 100 + idx + 1),
+      id: String(current[idx]?.id ?? `${p.id}-size-${idx + 1}`),
       talla: s.talla,
       stock: s.stock,
     }));
@@ -122,7 +125,7 @@ const normalizeProduct = (rawProduct: any): Product => {
     if (cached.length > 0) {
       const normalizedCached = normalizeSizeStocks(cached);
       p.sizeStocks = normalizedCached.map((s, idx) => ({
-        id: -(p.id * 100 + idx + 1),
+        id: `${p.id}-size-${idx + 1}`,
         talla: s.talla,
         stock: s.stock,
       }));
@@ -152,11 +155,25 @@ export const readSession = (): AuthResponse | null => {
 export const parseApiError = (errorPayload: unknown, fallback: string): string => {
   if (!errorPayload || typeof errorPayload !== 'object') return fallback;
   const message = (errorPayload as { message?: unknown }).message;
+  if (Array.isArray(message)) {
+    const joined = message
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .join(' · ');
+    if (joined.trim()) return joined;
+  }
   return typeof message === 'string' && message.trim() ? message : fallback;
 };
 
 export const authFetch = async <T>(path: string, session: AuthResponse | null, onLogout: () => void, options?: globalThis.RequestInit): Promise<T> => {
   if (!session) throw new Error('Sesión no disponible.');
+
+  const method = options?.method || 'GET';
+  console.log(`[FETCH-AUTH] ${method} ${API_BASE}${path}`);
+  if (options?.body) {
+    console.log(`[FETCH-AUTH-BODY]`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+  }
 
   const headers = new Headers(options?.headers);
   headers.set('Authorization', `Bearer ${session.token}`);
@@ -164,30 +181,49 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
 
-  if (response.status === 401 || response.status === 403) {
-    onLogout();
-    throw new Error('Sesión expirada o no autorizada. Ingresa nuevamente.');
+    if (response.status === 401 || response.status === 403) {
+      onLogout();
+      throw new Error('Sesión expirada o no autorizada. Ingresa nuevamente.');
+    }
+
+    if (!response.ok) {
+      let responseText = '';
+      let payload: unknown = null;
+      try {
+        responseText = await response.text();
+        payload = responseText ? JSON.parse(responseText) : null;
+      } catch (e) {
+        console.error(`[FETCH-AUTH-ERROR-PARSE] Response is not JSON:`, responseText);
+      }
+      
+      console.error(`[FETCH-AUTH-ERROR] Status: ${response.status} ${response.statusText}`);
+      console.error(`[FETCH-AUTH-ERROR-DETAILS] URL: ${API_BASE}${path}`);
+      console.error(`[FETCH-AUTH-ERROR-DETAILS] Method: ${method}`);
+      console.error(`[FETCH-AUTH-ERROR-DETAILS] Response Body:`, payload || responseText);
+      if (options?.body) {
+        console.error(`[FETCH-AUTH-ERROR-DETAILS] Sent Payload:`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+      }
+      
+      throw new Error(parseApiError(payload, `Error ${response.status}: ${response.statusText}`));
+    }
+
+    if (response.status === 204) return undefined as T;
+    
+    const text = await response.text();
+    if (!text) return null as unknown as T;
+    return JSON.parse(text) as T;
+  } catch (error: any) {
+    if (error.message && !error.message.includes('[FETCH-AUTH-ERROR]')) {
+      console.error(`[FETCH-AUTH-EXCEPTION] Unexpected error:`, error);
+    }
+    throw error;
   }
-
-  if (!response.ok) {
-    let payload: unknown = null;
-    try {
-      const text = await response.text();
-      payload = text ? JSON.parse(text) : null;
-    } catch (e) {}
-    throw new Error(parseApiError(payload, 'No se pudo completar la solicitud.'));
-  }
-
-  if (response.status === 204) return undefined as T;
-  
-  const text = await response.text();
-  if (!text) return null as unknown as T;
-  return JSON.parse(text) as T;
 };
 
 export const downloadFile = async (path: string, filename: string, session: AuthResponse | null) => {
@@ -212,7 +248,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
   const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email: username, password }),
   });
 
   if (!response.ok) {
@@ -256,30 +292,55 @@ export const verifyLoginChallenge = async (email: string, credential: any): Prom
 };
 
 export const publicFetch = async <T>(path: string, options?: globalThis.RequestInit): Promise<T> => {
+  const method = options?.method || 'GET';
+  console.log(`[FETCH] ${method} ${API_BASE}${path}`);
+  if (options?.body) {
+    console.log(`[FETCH-BODY]`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+  }
+  
   const headers = new Headers(options?.headers);
   if (!headers.has('Content-Type') && options?.body) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
 
-  if (!response.ok) {
-    let payload: unknown = null;
-    try {
-      const text = await response.text();
-      payload = text ? JSON.parse(text) : null;
-    } catch (e) {}
-    throw new Error(parseApiError(payload, 'No se pudo completar la solicitud.'));
+    if (!response.ok) {
+      let responseText = '';
+      let payload: unknown = null;
+      try {
+        responseText = await response.text();
+        payload = responseText ? JSON.parse(responseText) : null;
+      } catch (e) {
+        console.error(`[FETCH-ERROR-PARSE] Response is not JSON:`, responseText);
+      }
+      
+      console.error(`[FETCH-ERROR] Status: ${response.status} ${response.statusText}`);
+      console.error(`[FETCH-ERROR-DETAILS] URL: ${API_BASE}${path}`);
+      console.error(`[FETCH-ERROR-DETAILS] Method: ${method}`);
+      console.error(`[FETCH-ERROR-DETAILS] Response Body:`, payload || responseText);
+      if (options?.body) {
+        console.error(`[FETCH-ERROR-DETAILS] Sent Payload:`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+      }
+      
+      throw new Error(parseApiError(payload, `Error ${response.status}: ${response.statusText}`));
+    }
+
+    if (response.status === 204) return undefined as T;
+    
+    const text = await response.text();
+    if (!text) return null as unknown as T;
+    return JSON.parse(text) as T;
+  } catch (error: any) {
+    if (error.message && !error.message.includes('[FETCH-ERROR]')) {
+      console.error(`[FETCH-EXCEPTION] Unexpected error:`, error);
+    }
+    throw error;
   }
-
-  if (response.status === 204) return undefined as T;
-  
-  const text = await response.text();
-  if (!text) return null as unknown as T;
-  return JSON.parse(text) as T;
 };
 
 export const fetchPublicProducts = async () => {
@@ -288,12 +349,15 @@ export const fetchPublicProducts = async () => {
 };
 
 export const fetchInventoryProducts = async (session: AuthResponse | null, onLogout: () => void) => {
-  const products = await authFetch<Product[]>('/api/v1/inventario/productos', session, onLogout);
-  return onlyActiveProducts(normalizeProducts(products));
+  const response: any = await authFetch('/api/v1/inventario/productos', session, onLogout);
+  const productsArray = Array.isArray(response) ? response : (response.data || []);
+  return onlyActiveProducts(normalizeProducts(productsArray));
 };
 
-export const fetchInventoryAlerts = (session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<StockAlert[]>('/api/v1/inventario/alertas', session, onLogout);
+export const fetchInventoryAlerts = async (session: AuthResponse | null, onLogout: () => void) => {
+  const response: any = await authFetch('/api/v1/inventario/alertas', session, onLogout);
+  return Array.isArray(response) ? response : (response.data || []);
+};
 
 export const createInventoryProduct = async (
   payload: ProductPayload,
@@ -320,7 +384,7 @@ export const createInventoryProduct = async (
 };
 
 export const updateInventoryProduct = async (
-  id: number,
+  id: string,
   payload: ProductPayload,
   session: AuthResponse | null,
   onLogout: () => void,
@@ -345,7 +409,7 @@ export const updateInventoryProduct = async (
 };
 
 export const deleteInventoryProduct = (
-  id: number,
+  id: string,
   mode: 'soft' | 'hard',
   session: AuthResponse | null,
   onLogout: () => void,
@@ -361,7 +425,7 @@ export const confirmPublicQrDelivery = (payload: {
   employeeEmail: string;
   employeeCargo: string;
   notes: string;
-  items: Array<{ productId: number; quantity: number }>;
+  items: Array<{ productId: string; quantity: number }>;
   signatureDataUrl: string;
   evidencePhotos?: string[];
   giverSignatureDataUrl?: string;
@@ -407,52 +471,112 @@ export const startDeliverySession = (document: string) =>
     body: JSON.stringify({ employeeDocument: document })
   });
 
-export const iniciarEntregaAdmin = (id: string, adminId: string | null, session: AuthResponse | null, onLogout: () => void) => 
-  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/iniciar`, session, onLogout, {
+export const iniciarEntregaAdmin = (
+  payload: { solicitudId: string; adminId: string | null; receptorDocumento: string },
+  session: AuthResponse | null,
+  onLogout: () => void,
+) => 
+  authFetch<any>(`/api/v1/dotacion/solicitudes/${payload.solicitudId}/iniciar`, session, onLogout, {
     method: 'PATCH',
-    body: JSON.stringify({ adminId })
+    body: JSON.stringify({
+      adminId: payload.adminId,
+    })
   });
 
 export const getActiveDeliverySession = (document: string) => 
   publicFetch<any>(`/api/v1/dotacion/solicitudes/pendientes/${document}`).then(res => {
     if (!res) throw new Error("No session");
-    // Adapter
+    
+    // Map backend state to frontend DeliverySession state
+    // EN_PROCESO -> CREATED (Employee still sees locked state)
+    // ESPERANDO_RECEPTOR -> EVIDENCE_READY (Admin finished, employee can sign)
+    let frontendStatus = 'CREATED';
+    if (res.estado === 'ESPERANDO_RECEPTOR') frontendStatus = 'EVIDENCE_READY';
+    else if (res.estado === 'ENTREGADO') frontendStatus = 'COMPLETED';
+    else if (res.estado === 'CANCELADO' || res.estado === 'EXPIRADO') frontendStatus = 'ABANDONED';
+
     return {
       id: res.id,
       employeeDocument: res.receptorDocumento,
-      status: (res.estado === 'PENDIENTE_DESPACHO' ? 'CREATED' :
-              res.estado === 'EN_PROCESO' ? 'EVIDENCE_READY' :
-              res.estado === 'ESPERANDO_RECEPTOR' ? 'SIGNED' :
-              res.estado === 'ENTREGADO' ? 'COMPLETED' : 'ABANDONED') as "CREATED" | "EVIDENCE_READY" | "SIGNED" | "COMPLETED" | "ABANDONED",
+      status: frontendStatus as "CREATED" | "EVIDENCE_READY" | "SIGNED" | "COMPLETED" | "ABANDONED",
       itemsJson: JSON.stringify((res.detalles || []).map((d: any) => ({
-        productId: Number(d.productoId) || d.productoId,
+        productId: String(d.productoId),
         quantity: d.cantidad,
         talla: d.talla,
         name: d.producto?.nombre || `Ítem #${d.productoId}`
       }))),
-      photosJson: '[]', // mock until we link it to the actual entity
-      giverSignature: '', 
+      photosJson: res.acta?.fotosEvidencia || '[]',
+      giverSignature: res.acta?.firmaAdminBase64 || '', 
       giverFullName: res.admin?.nombreCompleto || 'Administrador',
-      receiverSignature: res.evidencia || ''
+      receiverSignature: res.acta?.evidenciaReceptor || ''
     };
   });
 
-export const updateSessionItemsAdmin = (id: string, items: any[], session: AuthResponse | null, onLogout: () => void) => 
-  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/items`, session, onLogout, {
-    method: 'PATCH',
-    body: JSON.stringify({ items })
+export const getDeliverySessionById = (id: string) => 
+  publicFetch<any>(`/api/v1/dotacion/solicitudes/${id}`).then(res => {
+    if (!res) throw new Error("No session");
+    let frontendStatus = 'CREATED';
+    if (res.estado === 'ESPERANDO_RECEPTOR') frontendStatus = 'EVIDENCE_READY';
+    else if (res.estado === 'ENTREGADO') frontendStatus = 'COMPLETED';
+    else if (res.estado === 'CANCELADO' || res.estado === 'EXPIRADO') frontendStatus = 'ABANDONED';
+
+    return {
+      id: res.id,
+      employeeDocument: res.receptorDocumento,
+      status: frontendStatus,
+      itemsJson: JSON.stringify((res.detalles || []).map((d: any) => ({
+        productId: String(d.productoId),
+        quantity: d.cantidad,
+        talla: d.talla,
+        name: d.producto?.nombre || `Ítem #${d.productoId}`
+      }))),
+      photosJson: res.acta?.fotosEvidencia || '[]',
+      giverSignature: res.acta?.firmaAdminBase64 || '',
+      receiverSignature: res.acta?.evidenciaReceptor || '',
+      giverFullName: res.admin?.nombres ? `${res.admin.nombres} ${res.admin.apellidos}` : 'Administrador',
+      estadoOriginal: res.estado
+    };
   });
 
-export const updateSessionEvidence = async (id: number, data: { itemsJson: string, photosJson: string, giverSignature: string, giverFullName: string }) => {
+export const updateSessionItemsAdmin = (id: string, items: any[], session: AuthResponse | null, onLogout: () => void) => {
+  const mappedItems = items.map((item: any) => ({
+    ...item,
+    productoId: item.productId,
+    cantidad: item.quantity,
+  }));
+  return authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/items`, session, onLogout, {
+    method: 'PATCH',
+    body: JSON.stringify({ items: mappedItems })
+  });
+};
+
+export const updateSessionEvidence = async (id: string, data: { itemsJson: string, photosJson: string, giverSignature: string, giverFullName: string }) => {
   try {
     const sessionStr = localStorage.getItem('gestion-dotacion-auth');
     const session = sessionStr ? JSON.parse(sessionStr) : null;
     const items = JSON.parse(data.itemsJson);
+    const mappedItems = items.map((item: any) => ({
+      ...item,
+      productoId: item.productId,
+      cantidad: item.quantity,
+    }));
     await authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/items`, session, () => {}, {
       method: 'PATCH',
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ items: mappedItems })
     });
-  } catch(e) {}
+    
+    // Also notify the backend that the admin signed and provided evidence
+    await authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/firma-admin`, session, () => {}, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        adminId: session?.user?.id || 'admin',
+        firmaBase64: data.giverSignature,
+        fotosEvidencia: data.photosJson
+      })
+    });
+  } catch(e) {
+    console.error(e);
+  }
   return data as any;
 };
 
@@ -512,6 +636,7 @@ export const crearSolicitudDotacion = (payload: {
   receptorDocumento: string;
   receptorNombre: string;
   receptorArea: string;
+  receptorCorreo?: string;
   consentimientoData: boolean;
   items?: Array<{ productoId: string; talla: string; cantidad: number }>;
 }) => 
@@ -520,12 +645,18 @@ export const crearSolicitudDotacion = (payload: {
     body: JSON.stringify(payload),
   });
 
+export const generarTokenQR = (sedeId: string = 'sede-principal-01') =>
+  publicFetch<{ id: string; codigo: string; mesValidacion: string }>('/api/v1/dotacion/qr/generar', {
+    method: 'POST',
+    body: JSON.stringify({ sedeId }),
+  });
+
 export const cancelarSolicitudDotacion = (id: string) =>
   publicFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, {
     method: 'PATCH',
   });
 
-export const savePendingDelivery = (document: string, items: Array<{ productId: number; quantity: number; talla: string }>) => 
+export const savePendingDelivery = (document: string, items: Array<{ productId: string; quantity: number; talla: string }>) => 
   publicFetch<any>(`/api/public/employees/${document}/pending`, {
     method: 'POST',
     body: JSON.stringify(items),
@@ -534,7 +665,7 @@ export const savePendingDelivery = (document: string, items: Array<{ productId: 
 export const products = () =>
   publicFetch<any[]>('/api/v1/public/products');
 
-export const createPendingDelivery = (payload: { employeeDocument: string; items: Array<{ productId: number; quantity: number }> }, session: AuthResponse | null, onLogout: () => void) => 
+export const createPendingDelivery = (payload: { employeeDocument: string; items: Array<{ productId: string; quantity: number }> }, session: AuthResponse | null, onLogout: () => void) => 
   authFetch<any>('/api/v1/deliveries/pending', session, onLogout, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -594,7 +725,7 @@ export const getPendingEmployees = async (session: AuthResponse | null, onLogout
     document: req.receptorDocumento,
     fullName: req.receptorNombre,
     cargo: req.receptorArea,
-    email: req.correo || 'N/A',
+    email: req.receptorCorreo || 'N/A',
     processState: req.estado,
     originalRequest: req
   }));

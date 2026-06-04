@@ -34,7 +34,7 @@ interface DeliveriesModuleProps {
     employeeDocument: string;
     employeeEmail: string;
     employeeCargo: string;
-    items: Array<{ productId: number; quantity: number }>;
+    items: Array<{ productId: string; quantity: number }>;
     notes: string;
     signatureDataUrl: string;
     giverSignatureDataUrl?: string;
@@ -57,7 +57,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [step, setStep] = useState(1);
   const [searchId, setSearchId] = useState('');
   const [employeeProfile, setEmployeeProfile] = useState<api.EmployeeProfile | null>(null);
-  const [cart, setCart] = useState<Record<number, { quantity: number; talla: string }>>({});
+  const [cart, setCart] = useState<Record<string, { quantity: number; talla: string }>>({});
   const [notes, setNotes] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -80,24 +80,59 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const drawingRef = useRef(false);
+  const sessionRef = useRef<AuthResponse | null>(session ?? null);
+  const onLogoutRef = useRef<(() => void) | undefined>(onLogout);
 
   React.useEffect(() => {
-    let interval: any;
+    sessionRef.current = session ?? null;
+  }, [session]);
+
+  React.useEffect(() => {
+    onLogoutRef.current = onLogout;
+  }, [onLogout]);
+
+  React.useEffect(() => {
     const fetchPending = async () => {
-      if (session) {
-        try {
-          const list = await api.getPendingEmployees(session, onLogout || (() => {}));
-          setPendingEmployees(list || []);
-        } catch (e) {
-          console.error("Error fetching pending employees:", e);
-        }
+      const currentSession = sessionRef.current;
+      if (!currentSession) return;
+
+      try {
+        const list = await api.getPendingEmployees(currentSession, onLogoutRef.current || (() => {}));
+        setPendingEmployees(list || []);
+      } catch (e) {
+        console.error("Error fetching pending employees:", e);
       }
     };
 
     fetchPending();
-    interval = setInterval(fetchPending, 3000);
-    return () => clearInterval(interval);
-  }, [session, onLogout]);
+    const intervalId = window.setInterval(fetchPending, 3000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  React.useEffect(() => {
+    let intervalId: any;
+    if (step === 2 && currentSession?.id) {
+      intervalId = window.setInterval(async () => {
+        try {
+          const live = await api.getDeliverySessionById(currentSession.id.toString());
+          if (live.estadoOriginal === 'ENTREGADO' || live.status === 'COMPLETED') {
+            if (live.receiverSignature && !signatureDataUrl) {
+              setSignatureDataUrl(live.receiverSignature);
+            }
+            if (live.giverSignature && !giverSignature) {
+              setGiverSignature(live.giverSignature);
+            }
+            setCurrentSession(prev => prev ? { ...prev, status: 'COMPLETED' } : null);
+          } else if (live.estadoOriginal === 'ESPERANDO_RECEPTOR') {
+            setCurrentSession(prev => prev ? { ...prev, status: 'EVIDENCE_READY' } : null);
+          }
+        } catch (e) {
+          // ignorar
+        }
+      }, 3000);
+    }
+    return () => clearInterval(intervalId);
+  }, [step, currentSession?.id, signatureDataUrl, giverSignature]);
 
   const handleSelectCollaborator = async (doc: string) => {
     if (!doc) return;
@@ -105,57 +140,80 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     setIsLoadingPending(true);
     try {
       const profile = await api.getEmployee(doc);
-      setEmployeeProfile(profile);
-      setSearchId(profile.document);
-      
-      let pending: any = null;
-      try {
-        pending = await api.getPendingDelivery(profile.document);
-        if (!pending) throw new Error("No pending");
+      const docToUse = profile?.document || doc;
+      setEmployeeProfile(profile?.document ? profile : { document: docToUse, fullName: '', email: '', cargo: '' });
+      setSearchId(docToUse);
+
+      const pending = await api.getPendingDelivery(docToUse).catch(() => null);
+
+      if (pending?.detalles?.length) {
         setPendingDelivery(pending);
-        const newCart: Record<number, { quantity: number; talla: string }> = {};
-        if (pending.detalles) {
-          pending.detalles.forEach((item: any) => {
-            const prodId = Number(item.productoId) || item.productoId;
-            newCart[prodId] = {
-              quantity: item.cantidad,
-              talla: item.talla || 'M'
-            };
-          });
-        }
+        const newCart: Record<string, { quantity: number; talla: string }> = {};
+        pending.detalles.forEach((item: any) => {
+          const productId = String(item.productoId);
+          newCart[productId] = {
+            quantity: item.cantidad,
+            talla: item.talla || 'M'
+          };
+        });
         setCart(newCart);
-      } catch (err) {
-        console.error("Error loading pending delivery:", err);
-        throw new Error("El colaborador está en la plataforma, pero aún no ha seleccionado los productos ni enviado la solicitud.");
+      } else {
+        setPendingDelivery(null);
+        setCart({});
       }
-      
+
+      const liveSession = pending
+        ? await api.iniciarEntregaAdmin(
+            {
+              solicitudId: pending.id,
+              adminId: session?.id || null,
+              receptorDocumento: docToUse.toString(),
+            },
+            session || null,
+            onLogout || (() => {}),
+          )
+        : await api.startDeliverySession(docToUse);
+
+      const normalizedSession = 'estado' in liveSession
+        ? {
+            id: liveSession.id,
+            employeeDocument: liveSession.receptorDocumento,
+            status: liveSession.estado === 'PENDIENTE_DESPACHO' ? 'CREATED' :
+                    liveSession.estado === 'EN_PROCESO' ? 'EVIDENCE_READY' :
+                    liveSession.estado === 'ESPERANDO_RECEPTOR' ? 'SIGNED' :
+                    liveSession.estado === 'ENTREGADO' ? 'COMPLETED' : 'ABANDONED',
+            itemsJson: JSON.stringify((liveSession.detalles || []).map((d: any) => ({
+              productId: String(d.productoId),
+              quantity: d.cantidad,
+              talla: d.talla,
+              name: d.producto?.nombre || `Ítem #${d.productoId}`
+            }))),
+            photosJson: '[]',
+            giverSignature: '',
+            giverFullName: session?.fullName || session?.username || 'Administrador'
+          }
+        : {
+            id: liveSession.id,
+            employeeDocument: liveSession.employeeDocument,
+            status: liveSession.status,
+            itemsJson: liveSession.itemsJson || '[]',
+            photosJson: liveSession.photosJson || '[]',
+            giverSignature: liveSession.giverSignature || '',
+            giverFullName: liveSession.giverFullName || session?.fullName || session?.username || 'Administrador'
+          };
+
       setStep(2);
-      // Start a live session
-      const sess = await api.iniciarEntregaAdmin(pending.id, session?.id || null, session || null, onLogout || (() => {}));
-      
-      // Adapt session to frontend format
-      const adaptedSession = {
-        id: sess.id,
-        employeeDocument: sess.receptorDocumento,
-        status: sess.estado === 'PENDIENTE_DESPACHO' ? 'CREATED' :
-                sess.estado === 'EN_PROCESO' ? 'EVIDENCE_READY' :
-                sess.estado === 'ESPERANDO_RECEPTOR' ? 'SIGNED' :
-                sess.estado === 'ENTREGADO' ? 'COMPLETED' : 'ABANDONED',
-        itemsJson: JSON.stringify((sess.detalles || []).map((d: any) => ({
-          productId: Number(d.productoId) || d.productoId,
-          quantity: d.cantidad,
-          talla: d.talla,
-          name: d.producto?.nombre || `Ítem #${d.productoId}`
-        }))),
-        photosJson: '[]',
-        giverSignature: '', 
-        giverFullName: session?.fullName || session?.username || 'Administrador'
-      };
-      
-      setCurrentSession(adaptedSession as any);
+      setCurrentSession(normalizedSession as any);
+
+      if (!pending) {
+        onNotify?.('success', 'No había solicitud previa. Se inició una entrega manual para este colaborador.');
+      }
     } catch (e: any) {
-      console.error(e);
-      setError(e.message || "Error al iniciar la entrega. Verifica si la solicitud ya está en proceso.");
+      const errorMsg = e?.message || "Error al procesar la entrega. Verifica los datos o si ya existe un proceso activo.";
+      setError(errorMsg);
+      if (onNotify) {
+        onNotify('error', errorMsg);
+      }
     } finally {
       setIsLoadingPending(false);
     }
@@ -174,9 +232,9 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       await api.cancelarSolicitudDotacion(empId);
       setPendingEmployees(prev => prev.filter(emp => emp.id !== empId));
       if (onNotify) onNotify('success', 'Solicitud anulada y removida de la lista.');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error removing pending employee:", err);
-      if (onNotify) onNotify('error', 'No se pudo anular la solicitud. Intente nuevamente.');
+      if (onNotify) onNotify('error', err?.message || 'No se pudo anular la solicitud. Intente nuevamente.');
     }
   };
 
@@ -186,17 +244,17 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     try {
       await api.resendDeliveryEmail(document, session || null, onLogout || (() => {}));
       if (onNotify) onNotify('success', 'Correo de aceptación enviado con éxito.');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error resending email:", err);
-      if (onNotify) onNotify('error', 'No se pudo enviar el correo de aceptación.');
+      if (onNotify) onNotify('error', err?.message || 'No se pudo enviar el correo de aceptación.');
     } finally {
       setIsResending(prev => ({ ...prev, [document]: false }));
     }
   };
 
-  const updateCartItemQuantity = async (productId: number, quantity: number, talla?: string) => {
+  const updateCartItemQuantity = async (productId: string, quantity: number, talla?: string) => {
     const currentItem = cart[productId];
-    const currentTalla = talla || currentItem?.talla || products.find(p => p.id === productId)?.sizeStocks?.[0]?.talla || 'M';
+    const currentTalla = talla || currentItem?.talla || products.find(p => String(p.id) === productId)?.sizeStocks?.[0]?.talla || 'M';
     
     const newCart = { 
       ...cart, 
@@ -208,11 +266,10 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       const selected = Object.entries(newCart)
         .filter(([, item]) => item.quantity > 0)
         .map(([id, item]) => {
-          const prodId = Number(id);
-          const product = products.find(p => p.id === prodId);
+          const product = products.find(p => String(p.id) === id);
           return {
-            productId: prodId,
-            name: product ? product.name : `Ítem #${prodId}`,
+            productId: id,
+            name: product ? product.name : `Ítem #${id}`,
             talla: item.talla,
             quantity: item.quantity
           };
@@ -220,8 +277,9 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       
       try {
         await api.updateSessionItemsAdmin(currentSession.id.toString(), selected, session || null, onLogout || (() => {}));
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error updating session items:', err);
+        if (onNotify) onNotify('error', err?.message || 'Error al actualizar los ítems de la dotación.');
       }
     }
   };
@@ -244,7 +302,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const selectedProducts = Object.entries(cart)
     .filter(([, item]) => item.quantity > 0)
     .map(([id, item]) => ({ 
-      productId: Number(id), 
+      productId: id, 
       quantity: item.quantity,
       talla: item.talla
     }));
@@ -253,11 +311,10 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     return Object.entries(cart)
       .filter(([, item]) => item.quantity > 0)
       .map(([id, item]) => {
-        const prodId = Number(id);
-        const product = products.find(p => p.id === prodId);
+        const product = products.find(p => String(p.id) === id);
         return {
-          productId: prodId,
-          name: product ? product.name : `Ítem #${prodId}`,
+          productId: id,
+          name: product ? product.name : `Ítem #${id}`,
           talla: item.talla,
           quantity: item.quantity
         };
@@ -267,10 +324,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     const isTouchEvent = 'touches' in event;
     const clientX = isTouchEvent ? (event as React.TouchEvent).touches[0].clientX : (event as React.MouseEvent).clientX;
     const clientY = isTouchEvent ? (event as React.TouchEvent).touches[0].clientY : (event as React.MouseEvent).clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const generateCorporateGiverSignature = (userName: string, role: string) => {
@@ -372,7 +431,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, 400, 400);
     
-    const dataUrl = canvas.toDataURL('image/jpeg');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
     setReceiverSelfie(dataUrl);
     stopCamera();
   };
@@ -459,7 +518,38 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEvidencePhotos(prev => [...prev, reader.result as string]);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimensions
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            setEvidencePhotos(prev => [...prev, compressedBase64]);
+          }
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     });
@@ -811,10 +901,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                   ) : (
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[420px] overflow-y-auto pr-2">
                         {filteredProducts.map(p => {
-                          const isInCart = cart[p.id] && cart[p.id].quantity > 0;
+                          const productId = String(p.id);
+                          const currentItem = cart[productId];
+                          const isInCart = currentItem && currentItem.quantity > 0;
                           return (
                             <div 
-                              key={p.id}
+                              key={productId}
                               className={`p-5 rounded-3xl border transition-all duration-250 flex flex-col justify-between ${
                                  isInCart 
                                     ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/25 scale-101" 
@@ -827,8 +919,8 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                                      <input 
                                        type="number" 
                                        min={0}
-                                       value={cart[p.id]?.quantity || 0}
-                                       onChange={(e) => updateCartItemQuantity(p.id, Number(e.target.value))}
+                                       value={currentItem?.quantity || 0}
+                                       onChange={(e) => updateCartItemQuantity(productId, Number(e.target.value))}
                                        className={`w-12 rounded-xl p-1.5 text-xs font-black text-center outline-none transition-all ${
                                           isInCart 
                                              ? "bg-blue-500 text-white border-none focus:ring-2 focus:ring-white/20" 
@@ -849,12 +941,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                                    <label className={`text-[8px] font-black uppercase tracking-wider block mb-2 ${isInCart ? "text-blue-200" : "text-slate-400"}`}>Seleccionar Talla:</label>
                                    <div className="flex flex-wrap gap-1.5">
                                      {p.sizeStocks.map(ss => {
-                                        const isSelected = (cart[p.id]?.talla || p.sizeStocks[0].talla) === ss.talla;
+                                       const isSelected = (currentItem?.talla || p.sizeStocks[0].talla) === ss.talla;
                                         const hasStock = ss.stock > 0;
                                         return (
                                            <button
                                               key={ss.id}
-                                              onClick={() => updateCartItemQuantity(p.id, cart[p.id]?.quantity || 0, ss.talla)}
+                                           onClick={() => updateCartItemQuantity(productId, currentItem?.quantity || 0, ss.talla)}
                                               className={`px-2.5 py-1.5 rounded-xl font-black text-[9px] tracking-wider transition-all duration-200 flex flex-col items-center min-w-[42px] border ${
                                                  isSelected
                                                     ? isInCart
@@ -901,7 +993,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                  <button 
                    onClick={async () => {
                       if (currentSession) {
-                        await api.updateSessionEvidence(currentSession.id, {
+                        await api.updateSessionEvidence(currentSession.id.toString(), {
                           itemsJson: JSON.stringify(getSelectedProductsRich()),
                           photosJson: JSON.stringify(evidencePhotos),
                           giverSignature: '', // Not signed yet
@@ -998,7 +1090,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                      <button 
                        onClick={async () => {
                          if (currentSession && giverSignature) {
-                            const updated = await api.updateSessionEvidence(currentSession.id, {
+                            const updated = await api.updateSessionEvidence(currentSession.id.toString(), {
                                itemsJson: JSON.stringify(getSelectedProductsRich()),
                                photosJson: JSON.stringify(receiverSelfie ? [receiverSelfie, ...evidencePhotos] : evidencePhotos),
                                giverSignature: giverSignature,
@@ -1015,7 +1107,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                   </div>
 
                   {/* Phase 3: Employee Signature & Selfie Receipt (Colaborador) */}
-                  <div className={`space-y-6 transition-all duration-500 ${evidencePhotos.length === 0 || !giverSignature ? "opacity-30 pointer-events-none" : "opacity-100"}`}>
+                  <div className={`space-y-6 transition-all duration-500 ${!giverSignature ? "opacity-30 pointer-events-none" : "opacity-100"}`}>
                      <div className="flex items-center justify-between">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                            <Signature size={14} className="text-blue-500" /> 3. Firma de Conformidad & Selfie de Recepción (Colaborador)
@@ -1105,11 +1197,11 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                               </div>
                            )}
                         </div>
-                     </div> border border-dashed border-slate-300
+                     </div>
 
-                     {(!giverSignature || evidencePhotos.length === 0) && (
+                     {!giverSignature && (
                         <p className="text-center text-[9px] font-black text-amber-500 uppercase italic">
-                           * Debe registrar fotos y firmar como administrador para habilitar la firma del colaborador
+                           * Debe generar el sello corporativo como administrador para habilitar la firma del colaborador
                         </p>
                      )}
                   </div>
@@ -1118,7 +1210,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                      <button onClick={() => setStep(2)} className="flex-1 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-600 dark:text-white">Atrás</button>
                      <button
                        onClick={async () => {
-                         if (!signatureDataUrl || evidencePhotos.length === 0 || !giverSignature) return;
+                         if (!signatureDataUrl || !giverSignature) return;
                          try {
                             const finalEvidencePhotos = receiverSelfie ? [receiverSelfie, ...evidencePhotos] : evidencePhotos;
                             const response = await onSubmitDelivery({
@@ -1135,6 +1227,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                             });
                            
                            if (currentSession) {
+                              await api.updateSessionEvidence(currentSession.id.toString(), {
+                                itemsJson: JSON.stringify(selectedProducts),
+                                photosJson: JSON.stringify(finalEvidencePhotos),
+                                giverSignature: giverSignature,
+                                giverFullName: session?.fullName || "Administrador Central"
+                              });
                               await api.employeeSignSession(currentSession.id.toString(), signatureDataUrl);
                            }
                            
@@ -1144,7 +1242,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                              cargo: employeeProfile?.cargo || "N/A",
                              nroActa: response.actaNumber || "S/N",
                              articulos: selectedProducts.map(sp => {
-                                const p = products.find(prod => prod.id === sp.productId);
+                              const p = products.find(prod => String(prod.id) === sp.productId);
                                 return {
                                    descripcion: p?.name || "N/A",
                                    talla: sp.talla || "N/A",

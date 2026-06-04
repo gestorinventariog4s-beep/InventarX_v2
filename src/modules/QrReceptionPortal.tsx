@@ -46,20 +46,28 @@ export const QrReceptionPortal: React.FC = () => {
 
   const handleIdentify = async () => {
     if (!employeeDocument.trim()) return;
+    const cleanDocument = employeeDocument.trim();
     setIsLoading(true);
     setMessage(null);
     try {
       let data: api.EmployeeProfile;
       try {
-        data = await api.getEmployee(employeeDocument.trim());
+        data = await api.getEmployee(cleanDocument);
       } catch (err) {
-        data = { fullName: '', email: '', cargo: '', document: employeeDocument.trim() };
+        data = { fullName: '', email: '', cargo: '', document: cleanDocument };
       }
-      setProfile(data);
+
+      // Keep document from the first step even when API returns an empty profile object.
+      setProfile({
+        fullName: data?.fullName || '',
+        email: data?.email || '',
+        cargo: data?.cargo || '',
+        document: data?.document?.trim() || cleanDocument,
+      });
 
       // ALWAYS try to fetch pending delivery by document
       try {
-        const pending = await api.getPendingDelivery(employeeDocument.trim());
+        const pending = await api.getPendingDelivery(cleanDocument);
         setPendingDelivery(pending);
 
         // Pre-fill portalCart with existing items
@@ -96,10 +104,18 @@ export const QrReceptionPortal: React.FC = () => {
   };
 
   const handleSaveProfile = async () => {
+    const receptorDocumento = (profile.document || employeeDocument).trim();
+
     if (!profile.fullName || !profile.email || !profile.cargo) {
       setMessage({ type: 'error', text: 'Por favor complete todos los campos.' });
       return;
     }
+
+    if (!receptorDocumento) {
+      setMessage({ type: 'error', text: 'El documento del colaborador es obligatorio.' });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const itemsPayload = Object.entries(portalCart)
@@ -116,12 +132,19 @@ export const QrReceptionPortal: React.FC = () => {
         return;
       }
 
+      // Generar token QR primero
+      const qrTokenData = await api.generarTokenQR('sede-principal-01');
+      if (!qrTokenData?.id) {
+        throw new Error('No se pudo generar el token QR');
+      }
+
       const solicitud = await api.crearSolicitudDotacion({
-        qrTokenId: 'token-placeholder', // In a real flow, this would come from the QR code (URL param)
+        qrTokenId: qrTokenData.id,
         sedeId: 'sede-principal-01',
-        receptorDocumento: profile.document,
+        receptorDocumento,
         receptorNombre: profile.fullName,
         receptorArea: profile.cargo,
+        receptorCorreo: profile.email,
         consentimientoData: true,
         items: itemsPayload
       });
@@ -332,7 +355,7 @@ export const QrReceptionPortal: React.FC = () => {
                       <div className="relative">
                         <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input 
-                          value={profile.fullName} 
+                          value={profile.fullName || ''} 
                           onChange={e => setProfile({...profile, fullName: e.target.value})}
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20" 
                         />
@@ -344,7 +367,7 @@ export const QrReceptionPortal: React.FC = () => {
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input 
-                          value={profile.email} 
+                          value={profile.email || ''} 
                           onChange={e => setProfile({...profile, email: e.target.value})}
                           placeholder="ejemplo@empresa.com"
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20" 
@@ -357,7 +380,7 @@ export const QrReceptionPortal: React.FC = () => {
                       <div className="relative">
                         <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input 
-                          value={profile.cargo} 
+                          value={profile.cargo || ''} 
                           onChange={e => setProfile({...profile, cargo: e.target.value})}
                           placeholder="Operario, Administrativo..."
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20" 
@@ -669,18 +692,22 @@ export const QrReceptionPortal: React.FC = () => {
                                 </div>
                              ) : (
                                 <div className="space-y-4">
-                                   <div className="bg-white dark:bg-black/40 border-2 border-dashed border-blue-100 dark:border-blue-500/20 rounded-[2.5rem] p-6 overflow-hidden relative shadow-inner">
+                                   <div className="relative">
                                       <canvas 
-                                        ref={canvasRef} width={400} height={150}
-                                        className="w-full h-32 bg-blue-50/5 dark:bg-blue-500/5 rounded-2xl cursor-crosshair"
+                                        ref={canvasRef} 
+                                        width={800} 
+                                        height={200}
+                                        className="w-full h-32 bg-slate-50 dark:bg-white/5 rounded-xl cursor-crosshair shadow-inner touch-none"
                                         onMouseDown={(e) => {
                                           const canvas = canvasRef.current;
                                           if (!canvas) return;
                                           const ctx = canvas.getContext('2d');
                                           if (!ctx) return;
                                           const rect = canvas.getBoundingClientRect();
+                                          const scaleX = canvas.width / rect.width;
+                                          const scaleY = canvas.height / rect.height;
                                           ctx.beginPath();
-                                          ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+                                          ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
                                           drawingRef.current = true;
                                         }}
                                         onMouseMove={(e) => {
@@ -690,7 +717,9 @@ export const QrReceptionPortal: React.FC = () => {
                                           const ctx = canvas.getContext('2d');
                                           if (!ctx) return;
                                           const rect = canvas.getBoundingClientRect();
-                                          ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                                          const scaleX = canvas.width / rect.width;
+                                          const scaleY = canvas.height / rect.height;
+                                          ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
                                           ctx.strokeStyle = '#2563eb';
                                           ctx.lineWidth = 3;
                                           ctx.lineCap = 'round';
@@ -698,7 +727,48 @@ export const QrReceptionPortal: React.FC = () => {
                                         }}
                                         onMouseUp={() => {
                                           drawingRef.current = false;
-                                          setEmployeeSignature(canvasRef.current?.toDataURL() || '');
+                                          setEmployeeSignature(canvasRef.current?.toDataURL('image/png') || '');
+                                        }}
+                                        onMouseLeave={() => {
+                                          if (drawingRef.current) {
+                                            drawingRef.current = false;
+                                            setEmployeeSignature(canvasRef.current?.toDataURL('image/png') || '');
+                                          }
+                                        }}
+                                        onTouchStart={(e) => {
+                                          e.preventDefault();
+                                          const canvas = canvasRef.current;
+                                          if (!canvas) return;
+                                          const ctx = canvas.getContext('2d');
+                                          if (!ctx) return;
+                                          const rect = canvas.getBoundingClientRect();
+                                          const scaleX = canvas.width / rect.width;
+                                          const scaleY = canvas.height / rect.height;
+                                          const touch = e.touches[0];
+                                          ctx.beginPath();
+                                          ctx.moveTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
+                                          drawingRef.current = true;
+                                        }}
+                                        onTouchMove={(e) => {
+                                          e.preventDefault();
+                                          if (!drawingRef.current) return;
+                                          const canvas = canvasRef.current;
+                                          if (!canvas) return;
+                                          const ctx = canvas.getContext('2d');
+                                          if (!ctx) return;
+                                          const rect = canvas.getBoundingClientRect();
+                                          const scaleX = canvas.width / rect.width;
+                                          const scaleY = canvas.height / rect.height;
+                                          const touch = e.touches[0];
+                                          ctx.lineTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
+                                          ctx.strokeStyle = '#2563eb';
+                                          ctx.lineWidth = 3;
+                                          ctx.lineCap = 'round';
+                                          ctx.stroke();
+                                        }}
+                                        onTouchEnd={() => {
+                                          drawingRef.current = false;
+                                          setEmployeeSignature(canvasRef.current?.toDataURL('image/png') || '');
                                         }}
                                       />
                                       <button onClick={() => {

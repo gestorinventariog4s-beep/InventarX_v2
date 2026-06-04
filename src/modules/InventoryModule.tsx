@@ -22,8 +22,8 @@ interface InventoryManagerProps {
   products: Product[];
   alerts: StockAlert[];
   onAddProduct: (p: ProductPayload) => Promise<void>;
-  onEditProduct: (id: number, p: ProductPayload) => Promise<void>;
-  onDeleteProduct: (id: number, mode: 'soft' | 'hard') => Promise<void>;
+  onEditProduct: (id: string, p: ProductPayload) => Promise<void>;
+  onDeleteProduct: (id: string, mode: 'soft' | 'hard') => Promise<void>;
   onBulkAddProducts: (products: ProductPayload[]) => Promise<void>;
   isLoading: boolean;
 }
@@ -72,8 +72,8 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
   const [quickView, setQuickView] = useState<'all' | 'critical'>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<number | null>(null);
-  const [expandedProductId, setExpandedProductId] = useState<number | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductPayload>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
@@ -270,10 +270,10 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
         case 'stock_desc':
           return (b.stock ?? 0) - (a.stock ?? 0);
         case 'oldest':
-          return (a.id ?? 0) - (b.id ?? 0);
+          return (a.id ?? '').localeCompare(b.id ?? '');
         case 'recent':
         default:
-          return (b.id ?? 0) - (a.id ?? 0);
+          return (b.id ?? '').localeCompare(a.id ?? '');
       }
     });
 

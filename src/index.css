@@ -4,6 +4,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force HMR refresh - v2 */
+
 :root {
   --primary: #2563eb;
   --primary-dark: #1e3a8a;

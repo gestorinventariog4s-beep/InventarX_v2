@@ -22,7 +22,7 @@ interface QrModuleProps {
     employeeEmail: string;
     employeeCargo: string;
     notes: string;
-    items: Array<{ productId: number; quantity: number }>;
+    items: Array<{ productId: string; quantity: number }>;
     signatureDataUrl: string;
   }) => Promise<{ actaId: number; actaNumber: string; employeeEmail: string }>;
   onDownloadActa: (actaId: number) => Promise<void>;
@@ -67,7 +67,7 @@ export const QrModule: React.FC<QrModuleProps> = ({
   const [employeeEmail, setEmployeeEmail] = useState('');
   const [employeeCargo, setEmployeeCargo] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedItems, setSelectedItems] = useState<Record<number, number>>({});
+  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [result, setResult] = useState<{ actaId: number; actaNumber: string; employeeEmail: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,7 +87,7 @@ export const QrModule: React.FC<QrModuleProps> = ({
   const selectedProducts = useMemo(() => {
     return Object.entries(selectedItems)
       .filter(([, quantity]) => quantity > 0)
-      .map(([productId, quantity]) => ({ productId: Number(productId), quantity }));
+      .map(([productId, quantity]) => ({ productId, quantity }));
   }, [selectedItems]);
 
   const saveSignature = () => {

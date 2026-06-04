@@ -10,19 +10,19 @@ export interface AuthResponse {
 }
 
 export interface Category {
-  id: number;
+  id: string;
   name: string;
   description?: string;
 }
 
 export interface SizeStock {
-  id: number;
+  id: string;
   talla: string;
   stock: number;
 }
 
 export interface Product {
-  id: number;
+  id: string;
   sku: string;
   name: string;
   type: string;
@@ -76,7 +76,7 @@ export interface StockAlert {
 
 export interface ReturnTicket {
   id: number;
-  employee: { id: number; username: string; fullName: string };
+  employee: { id: string; username: string; fullName: string };
   product: Product;
   quantity: number;
   reason: string;
@@ -155,7 +155,7 @@ export interface DeliveryItemState {
 }
 
 export interface MovementPayload {
-  productId: number;
+  productId: string;
   quantity: number;
   reason: string;
   referenceId?: string;
@@ -204,7 +204,7 @@ export interface Receptor {
 }
 
 export interface EntregaItem {
-  productoId: string | number;
+  productoId: string;
   cantidad: number;
 }
 
