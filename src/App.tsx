@@ -34,7 +34,7 @@ import {
 } from './services/api';
 import { fetchInventoryMovements } from './services/inventoryMovements';
 
-import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload, InventoryMovement, DashboardDemandResponse, UserProfile } from './types';
+import type { AuthResponse, ModuleId, AuditLog, Product, AppUser, StockAlert, UserRole, ProductPayload, InventoryMovement, UserProfile } from './types';
 
 // ==========================================
 // CONSTANTES GLOBALES (Declaradas una sola vez)
@@ -162,49 +162,6 @@ function App() {
     return fallback;
   };
 
-  // ==========================================
-  // METRICAS DERIVADAS (Dashboard)
-  // ==========================================
-  const dashboardDemand = (): DashboardDemandResponse => {
-    const outbound = movements.filter(m => m.movementType === 'OUTBOUND' || m.movementType === 'SALIDA');
-    const productCounts = new Map<string, number>();
-    outbound.forEach(m => {
-      const name = m.product?.name || 'Desconocido';
-      productCounts.set(name, (productCounts.get(name) || 0) + m.quantity);
-    });
-    const topProducts = Array.from(productCounts.entries())
-      .map(([productName, quantity]) => ({ productName, quantity }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5);
-      
-    return {
-      topProducts,
-      movementsCurrentMonth: outbound.length,
-    };
-  };
-
-  const dashboardRealTime = () => {
-    if (movements.length === 0) {
-      return [
-        { time: '00:00', value: 0 },
-        { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), value: 0 }
-      ];
-    }
-    const recent = [...movements].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-10);
-    const data = recent.map(m => ({
-      time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      value: m.quantity
-    }));
-    
-    if (data.length === 1) {
-      return [
-        { time: '00:00', value: 0 },
-        data[0]
-      ];
-    }
-    
-    return data;
-  };
 
   // ==========================================
   // EFECTOS (Sincronizaciones y Cargas)
