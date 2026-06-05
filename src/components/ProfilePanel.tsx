@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, CheckCircle2, Navigation, Coffee, Moon, Edit3, Save, Loader2 } from 'lucide-react';
-import { getMiPerfil, updatePerfil, updateEstado, uploadProfileImage } from '../services/api';
+import { getMiPerfil, updatePerfil, updateEstado, uploadProfileImageBase64 } from '../services/api';
 import { UserProfile } from '../types';
 
 interface ProfilePanelProps {
@@ -101,7 +101,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
         setIsUploadingPortada(true);
       }
       
-      const res = await uploadProfileImage(file, type === 'avatar' ? 'perfil' : 'portada');
+      const res = await uploadProfileImageBase64(file, type === 'avatar' ? 'perfil' : 'portada');
       setPerfil(res);
       if (onProfileUpdate) onProfileUpdate(res);
       showToast('success', 'Imagen actualizada con éxito');

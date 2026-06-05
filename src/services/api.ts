@@ -1,5 +1,6 @@
 // --- AUDITORÍA ---
-import type { AuditLog } from '../types';
+import type { AuditLog, AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
+import { compressImageToBase64 } from '../utils/imageCompressor';
 
 // Carga logs de auditoría
 export const fetchAuditLogs = async (
@@ -11,7 +12,6 @@ export const fetchAuditLogs = async (
   const res = await authFetch<any>(`/api/v1/auditoria/global?page=1&limit=100`, session, onLogout);
   return Array.isArray(res) ? res : (res.data || []);
 };
-import type { AppUser, AuthResponse, DeliveryResultResponse, Product, ProductPayload, UpdateUserPayload, UserRole, UserProfile, UpdatePerfilPayload } from '../types';
 
 const STORAGE_KEY = 'gestion-dotacion-auth';
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -790,14 +790,16 @@ export const fetchEquipo = () => {
   return authFetch<UserProfile[]>('/api/v1/perfiles/equipo', session, profileLogout);
 };
 
-export const uploadProfileImage = (file: File | Blob, type: 'perfil' | 'portada') => {
+export const uploadProfileImageBase64 = async (file: File | Blob, type: 'perfil' | 'portada') => {
   const session = readSession();
-  const formData = new FormData();
-  const key = type === 'perfil' ? 'avatar' : 'cover';
-  formData.append(key, file);
-  return authFetch<UserProfile>(`/api/v1/perfiles/upload-${key}`, session, profileLogout, {
+  
+  // Convertir Blob a File si es necesario
+  const imageFile = file instanceof File ? file : new File([file], 'image.jpg', { type: file.type });
+  const base64Data = await compressImageToBase64(imageFile, type === 'portada' ? 1200 : 800, 0.7);
+
+  return authFetch<UserProfile>('/api/v1/perfiles/update-image-base64', session, profileLogout, {
     method: 'POST',
-    body: formData,
+    body: JSON.stringify({ tipo: type, base64Data }),
   });
 };
 
