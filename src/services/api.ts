@@ -170,7 +170,7 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
   if (!session) throw new Error('Sesión no disponible.');
 
   const method = options?.method || 'GET';
-  const isFormDataBody = options?.body instanceof FormData;
+  const isFormDataBody = options?.body instanceof FormData || (options?.body && Object.prototype.toString.call(options?.body) === '[object FormData]');
   console.log(`[FETCH-AUTH] ${method} ${API_BASE}${path}`);
   if (options?.body && !isFormDataBody) {
     console.log(`[FETCH-AUTH-BODY]`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
