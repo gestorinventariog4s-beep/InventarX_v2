@@ -790,21 +790,12 @@ export const fetchEquipo = () => {
   return authFetch<UserProfile[]>('/api/v1/perfiles/equipo', session, profileLogout);
 };
 
-export const uploadAvatar = (file: File | Blob) => {
+export const uploadProfileImage = (file: File | Blob, type: 'perfil' | 'portada') => {
   const session = readSession();
   const formData = new FormData();
-  formData.append('file', file);
-  return authFetch<UserProfile>('/api/v1/perfiles/upload-avatar', session, profileLogout, {
-    method: 'POST',
-    body: formData,
-  });
-};
-
-export const uploadPortada = (file: File | Blob) => {
-  const session = readSession();
-  const formData = new FormData();
-  formData.append('file', file);
-  return authFetch<UserProfile>('/api/v1/perfiles/upload-portada', session, profileLogout, {
+  const key = type === 'perfil' ? 'avatar' : 'cover';
+  formData.append(key, file);
+  return authFetch<UserProfile>(`/api/v1/perfiles/upload-${key}`, session, profileLogout, {
     method: 'POST',
     body: formData,
   });
