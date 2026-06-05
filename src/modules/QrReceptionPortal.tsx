@@ -436,7 +436,7 @@ export const QrReceptionPortal: React.FC = () => {
                                 return (
                                   <div key={id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:scale-101">
                                     <div>
-                                      <p className="text-xs font-black text-slate-900 dark:text-white">{p?.name || `Producto #${id}`}</p>
+                                      <p className="text-xs font-black text-slate-900 dark:text-white">{((p as any)?.nombre) || p?.name || `Producto #${id}`}</p>
                                       <p translate="no" className="notranslate text-[9px] font-bold text-slate-400 uppercase">Talla: {val.talla || "N/A"}</p>
                                     </div>
                                     <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-3 py-1.5 rounded-xl text-[10px] font-black">x{val.quantity}</span>
@@ -472,7 +472,7 @@ export const QrReceptionPortal: React.FC = () => {
 
                           <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
                             {products
-                              .filter(p => !searchQuery.trim() || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+                              .filter(p => !searchQuery.trim() || (((p as any).nombre) || p.name).toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
                                 .map(p => {
                                   let sizes = ["M"];
                                   if (Array.isArray(p.tallas) && p.tallas.length > 0) {
@@ -495,7 +495,7 @@ export const QrReceptionPortal: React.FC = () => {
                                   <div key={p.id} className={`p-4 rounded-2xl border transition-all ${currentItem.quantity > 0 ? "bg-white dark:bg-slate-900 border-blue-500/30 shadow-md shadow-blue-500/5" : "bg-white/40 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"}`}>
                                     <div className="flex justify-between items-start gap-2 mb-2.5">
                                       <div className="flex-1 min-w-0 pr-2">
-                                        <p className="text-xs font-black text-slate-950 dark:text-white leading-tight break-words">{p.name}</p>
+                                        <p className="text-xs font-black text-slate-950 dark:text-white leading-tight break-words">{((p as any).nombre) || p.name}</p>
                                         <p className="text-[8px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest mt-0.5">{p.sku}</p>
                                       </div>
                                       <input 

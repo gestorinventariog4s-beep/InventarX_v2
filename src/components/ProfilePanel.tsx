@@ -94,30 +94,25 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
-      try {
-        if (type === 'avatar') {
-          setIsUploadingAvatar(true);
-          const res = await uploadAvatar(base64);
-          setPerfil(res);
-          if (onProfileUpdate) onProfileUpdate(res);
-        } else {
-          setIsUploadingPortada(true);
-          const res = await uploadPortada(base64);
-          setPerfil(res);
-          if (onProfileUpdate) onProfileUpdate(res);
-        }
-        showToast('success', 'Imagen actualizada con éxito');
-      } catch (err) {
-        showToast('error', 'Error al subir la imagen');
-      } finally {
-        setIsUploadingAvatar(false);
-        setIsUploadingPortada(false);
+    try {
+      if (type === 'avatar') {
+        setIsUploadingAvatar(true);
+        const res = await uploadAvatar(file);
+        setPerfil(res);
+        if (onProfileUpdate) onProfileUpdate(res);
+      } else {
+        setIsUploadingPortada(true);
+        const res = await uploadPortada(file);
+        setPerfil(res);
+        if (onProfileUpdate) onProfileUpdate(res);
       }
-    };
-    reader.readAsDataURL(file);
+      showToast('success', 'Imagen actualizada con éxito');
+    } catch (err) {
+      showToast('error', 'Error al subir la imagen');
+    } finally {
+      setIsUploadingAvatar(false);
+      setIsUploadingPortada(false);
+    }
   };
 
   const statusConfig = {

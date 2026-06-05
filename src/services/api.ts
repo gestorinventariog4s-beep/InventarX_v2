@@ -790,19 +790,23 @@ export const fetchEquipo = () => {
   return authFetch<UserProfile[]>('/api/v1/perfiles/equipo', session, profileLogout);
 };
 
-export const uploadAvatar = (base64Image: string) => {
+export const uploadAvatar = (file: File | Blob) => {
   const session = readSession();
+  const formData = new FormData();
+  formData.append('file', file);
   return authFetch<UserProfile>('/api/v1/perfiles/upload-avatar', session, profileLogout, {
     method: 'POST',
-    body: JSON.stringify({ base64Image }),
+    body: formData,
   });
 };
 
-export const uploadPortada = (base64Image: string) => {
+export const uploadPortada = (file: File | Blob) => {
   const session = readSession();
+  const formData = new FormData();
+  formData.append('file', file);
   return authFetch<UserProfile>('/api/v1/perfiles/upload-portada', session, profileLogout, {
     method: 'POST',
-    body: JSON.stringify({ base64Image }),
+    body: formData,
   });
 };
 

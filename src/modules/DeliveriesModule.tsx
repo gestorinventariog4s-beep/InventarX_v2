@@ -336,7 +336,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
           const product = products.find(p => String(p.id) === id);
           return {
             productId: id,
-            name: product ? product.name : `Ítem #${id}`,
+            name: product ? ((product as any).nombre || product.name) : `Ítem #${id}`,
             talla: item.talla,
             quantity: item.quantity
           };
@@ -357,7 +357,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   };
 
   const filteredProducts = activeProducts.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+    const matchesSearch = ((p as any).nombre || p.name).toLowerCase().includes(productSearch.toLowerCase()) || 
                           p.sku.toLowerCase().includes(productSearch.toLowerCase());
     
     const matchesCategory = productCategory === 'ALL' || 
@@ -386,7 +386,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
         const product = activeProducts.find(p => String(p.id) === id);
         return {
           productId: id,
-          name: product ? product.name : `Ítem #${id}`,
+          name: product ? ((product as any).nombre || product.name) : `Ítem #${id}`,
           talla: item.talla,
           quantity: item.quantity
         };
