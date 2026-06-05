@@ -136,17 +136,22 @@ function App() {
     if (session) {
       getMiPerfil().then((perfil) => {
         setUserProfile(perfil);
-        localStorage.setItem('gestion-dotacion-last-user', JSON.stringify({
-          username: session.username,
-          fullName: perfil.nombreCompleto || session.fullName,
-          puestoTrabajo: perfil.puestoTrabajo || session.role,
-          fotoAvatar: perfil.fotoAvatar || null
-        }));
       }).catch(console.error);
     } else {
       setUserProfile(null);
     }
   }, [session]);
+
+  useEffect(() => {
+    if (session && userProfile) {
+      localStorage.setItem('gestion-dotacion-last-user', JSON.stringify({
+        username: session.username,
+        fullName: userProfile.nombreCompleto || session.fullName,
+        puestoTrabajo: userProfile.puestoTrabajo || session.role,
+        fotoAvatar: userProfile.fotoAvatar || null
+      }));
+    }
+  }, [session, userProfile]);
 
   // ==========================================
   // UTILIDADES GLOBALES
@@ -265,6 +270,13 @@ function App() {
   const handleLoginSuccess = (authData: AuthResponse) => {
     setSession(authData);
     setActiveModule('resumen');
+    
+    localStorage.setItem('gestion-dotacion-last-user', JSON.stringify({
+      username: authData.username,
+      fullName: authData.fullName,
+      puestoTrabajo: authData.role,
+      fotoAvatar: authData.fotoAvatar || null
+    }));
   };
 
   // ==========================================

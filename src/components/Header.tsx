@@ -115,8 +115,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </p>
               </div>
               <div className="relative">
-                {userProfile?.fotoAvatar ? (
-                  <img src={userProfile.fotoAvatar} alt="Avatar" className="w-10 h-10 rounded-xl object-cover shadow-md border border-slate-200 dark:border-white/10" />
+                {(userProfile?.fotoAvatar || session.fotoAvatar) ? (
+                  <img src={userProfile?.fotoAvatar || session.fotoAvatar} alt="Avatar" className="w-10 h-10 rounded-xl object-cover shadow-md border border-slate-200 dark:border-white/10" />
                 ) : (
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-black shadow-md">
                     {(userProfile?.nombreCompleto || session.fullName || session.username).charAt(0).toUpperCase()}

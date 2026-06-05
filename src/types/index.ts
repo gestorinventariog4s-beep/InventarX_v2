@@ -7,6 +7,7 @@ export interface AuthResponse {
   username: string;
   fullName: string;
   role: UserRole;
+  fotoAvatar?: string;
 }
 
 export interface Category {
