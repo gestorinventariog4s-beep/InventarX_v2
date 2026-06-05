@@ -28,195 +28,230 @@ export interface ActaProps {
   nroActa?: string;
 }
 
-// Styles definition
+// Styles definition - Corporate Slate/Navy/Blue
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    paddingBottom: 60,
     fontFamily: 'Helvetica',
     fontSize: 10,
-    color: '#333',
+    color: '#334155', // slate-700
+    backgroundColor: '#ffffff'
   },
   // Header Section
   header: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'black',
-    marginBottom: 20,
-    height: 60,
+    backgroundColor: '#0f172a', // slate-900
+    borderRadius: 8,
+    marginBottom: 24,
+    height: 70,
+    overflow: 'hidden',
+    color: '#ffffff'
   },
   headerLogo: {
     width: '25%',
-    borderRightWidth: 1,
-    borderRightColor: 'black',
-    borderRightStyle: 'solid',
-    padding: 5,
+    backgroundColor: '#1e293b', // slate-800
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 10,
   },
   headerTitle: {
     width: '75%',
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingLeft: 20,
   },
   titleText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: '#f8fafc', // slate-50
+  },
+  subtitleText: {
+    fontSize: 9,
+    marginTop: 4,
+    color: '#94a3b8', // slate-400
   },
   // Info Section (Data Table)
   infoTable: {
-    marginBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'black',
-    borderTopStyle: 'solid',
-    borderLeftWidth: 1,
-    borderLeftColor: 'black',
-    borderLeftStyle: 'solid',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0', // slate-200
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   infoRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: 'black',
-    borderBottomStyle: 'solid',
-    borderRightWidth: 1,
-    borderRightColor: 'black',
-    borderRightStyle: 'solid',
+    borderBottomColor: '#e2e8f0',
+  },
+  infoRowLast: {
+    borderBottomWidth: 0,
   },
   infoLabel: {
-    width: '30%',
-    backgroundColor: '#f0f0f0',
-    padding: 6,
-    fontWeight: 'bold',
+    width: '35%',
+    backgroundColor: '#f8fafc', // slate-50
+    padding: 8,
+    fontFamily: 'Helvetica-Bold',
     fontSize: 9,
+    color: '#475569', // slate-600
     borderRightWidth: 1,
-    borderRightColor: 'black',
-    borderRightStyle: 'solid',
+    borderRightColor: '#e2e8f0',
+    textTransform: 'uppercase',
   },
   infoValue: {
-    width: '70%',
-    padding: 6,
+    width: '65%',
+    padding: 8,
     fontSize: 9,
+    color: '#0f172a', // slate-900
+    fontFamily: 'Helvetica-Bold',
   },
   // Products Section
+  sectionTitle: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    color: '#1e3a8a', // blue-900
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    borderBottomWidth: 2,
+    borderBottomColor: '#3b82f6', // blue-500
+    paddingBottom: 4,
+  },
   productsTable: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'black',
-    borderTopStyle: 'solid',
-    borderLeftWidth: 1,
-    borderLeftColor: 'black',
-    borderLeftStyle: 'solid',
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   productsHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    fontWeight: 'bold',
-    borderBottomWidth: 1,
-    borderBottomColor: 'black',
-    borderBottomStyle: 'solid',
-    borderRightWidth: 1,
-    borderRightColor: 'black',
-    borderRightStyle: 'solid',
+    backgroundColor: '#1e293b', // slate-800
+    color: '#ffffff',
   },
   productsRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: 'black',
-    borderBottomStyle: 'solid',
-    borderRightWidth: 1,
-    borderRightColor: 'black',
-    borderRightStyle: 'solid',
+    borderBottomColor: '#e2e8f0',
     minHeight: 45,
     alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
-  colFoto: { width: '20%', borderRightWidth: 1, borderRightColor: 'black', borderRightStyle: 'solid', padding: 2, alignItems: 'center', justifyContent: 'center' },
-  colArticulo: { width: '50%', borderRightWidth: 1, borderRightColor: 'black', borderRightStyle: 'solid', padding: 5 },
-  colTalla: { width: '15%', borderRightWidth: 1, borderRightColor: 'black', borderRightStyle: 'solid', padding: 5, textAlign: 'center' },
-  colCantidad: { width: '15%', padding: 5, textAlign: 'center' },
+  productsRowAlt: {
+    backgroundColor: '#f8fafc',
+  },
+  colFoto: { width: '15%', borderRightWidth: 1, borderRightColor: '#e2e8f0', padding: 4, alignItems: 'center', justifyContent: 'center' },
+  colArticulo: { width: '55%', borderRightWidth: 1, borderRightColor: '#e2e8f0', padding: 8 },
+  colTalla: { width: '15%', borderRightWidth: 1, borderRightColor: '#e2e8f0', padding: 8, textAlign: 'center' },
+  colCantidad: { width: '15%', padding: 8, textAlign: 'center' },
 
   headerCell: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    padding: 5,
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    padding: 8,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   productCell: {
     fontSize: 9,
-    padding: 5,
+    color: '#334155',
   },
   productImage: {
     width: 35,
     height: 35,
     objectFit: 'contain',
+    borderRadius: 4,
+  },
+  // Evidence Gallery
+  evidenceSection: {
+    marginTop: 24,
+  },
+  evidenceContainer: {
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1', // slate-300
+    borderStyle: 'dashed',
+  },
+  evidenceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  evidencePhoto: {
+    width: 140,
+    height: 105,
+    objectFit: 'cover',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   // Signature Section
   signatureSection: {
     marginTop: 40,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    paddingHorizontal: 20,
   },
-  signatureBox: {
-    width: 200,
-    borderBottomWidth: 1,
-    borderBottomColor: 'black',
-    borderBottomStyle: 'solid',
-    marginBottom: 5,
+  signatureBlock: {
+    width: '45%',
     alignItems: 'center',
   },
+  signatureBox: {
+    width: '100%',
+    height: 70,
+    borderBottomWidth: 1,
+    borderBottomColor: '#475569',
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+  },
   signatureImage: {
-    width: 150,
-    height: 50,
+    width: '90%',
+    height: 60,
     objectFit: 'contain',
   },
   signatureLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginTop: 5,
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+  },
+  signatureSubLabel: {
+    fontSize: 8,
+    color: '#64748b',
+    marginTop: 2,
   },
   // Footer
   footer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 25,
     left: 40,
     right: 40,
     textAlign: 'center',
-    fontSize: 8,
-    color: '#999',
-    borderTop: '0.5pt solid #eee',
-    paddingTop: 5,
+    fontSize: 7,
+    color: '#94a3b8',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 8,
   },
-  // Evidence Gallery
-  evidenceSection: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#fafafa',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderStyle: 'solid',
+  watermark: {
+    position: 'absolute',
+    top: '35%',
+    left: '10%',
+    opacity: 0.03,
+    transform: 'rotate(-45deg)',
   },
-  evidenceTitle: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    color: '#666',
-  },
-  evidenceGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  evidencePhoto: {
-    width: 100,
-    height: 80,
-    objectFit: 'cover',
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderStyle: 'solid',
+  watermarkText: {
+    fontSize: 80,
+    fontFamily: 'Helvetica-Bold',
+    color: '#0f172a',
   }
 });
 
@@ -236,118 +271,126 @@ export const ActaReportPDF: React.FC<ActaProps> = ({
 }) => (
   <Document>
     <Page size="A4" style={styles.page}>
+      
+      {/* Background Watermark */}
+      <View style={styles.watermark} fixed>
+        <Text style={styles.watermarkText}>INVENTARX</Text>
+      </View>
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLogo}>
           {logoUrl ? (
-            <Image src={logoUrl} style={{ width: 40, height: 40 }} />
+            <Image src={logoUrl} style={{ width: 45, height: 45, objectFit: 'contain' }} />
           ) : (
-            <Text style={{ fontSize: 8, fontWeight: 'bold' }}>LOGO EMPRESA</Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#fff' }}>INVENTARX</Text>
           )}
         </View>
         <View style={styles.headerTitle}>
-          <Text style={styles.titleText}>Acta Entrega - Elementos Dotación</Text>
-          <Text style={{ fontSize: 8, marginTop: 4 }}>Gestión de Suministros Industriales</Text>
+          <Text style={styles.titleText}>Acta Oficial de Entrega</Text>
+          <Text style={styles.subtitleText}>Dotación y Elementos de Protección Personal (EPP)</Text>
         </View>
       </View>
 
       {/* Info Section */}
       <View style={styles.infoTable}>
         <View style={styles.infoRow}>
-          <View style={styles.infoLabel}><Text>NRO. ACTA</Text></View>
+          <View style={styles.infoLabel}><Text>Código del Acta</Text></View>
           <View style={styles.infoValue}><Text>{nroActa}</Text></View>
         </View>
         <View style={styles.infoRow}>
-          <View style={styles.infoLabel}><Text>FECHA DE ENTREGA</Text></View>
+          <View style={styles.infoLabel}><Text>Fecha de Entrega</Text></View>
           <View style={styles.infoValue}><Text>{fecha}</Text></View>
         </View>
         <View style={styles.infoRow}>
-          <View style={styles.infoLabel}><Text>NOMBRE COMPLETO</Text></View>
+          <View style={styles.infoLabel}><Text>Funcionario / Colaborador</Text></View>
           <View style={styles.infoValue}><Text>{nombre}</Text></View>
         </View>
         <View style={styles.infoRow}>
-          <View style={styles.infoLabel}><Text>IDENTIFICACIÓN</Text></View>
+          <View style={styles.infoLabel}><Text>Documento de Identidad</Text></View>
           <View style={styles.infoValue}><Text>{identificacion}</Text></View>
         </View>
-        <View style={styles.infoRow}>
-          <View style={styles.infoLabel}><Text>CARGO / ÁREA</Text></View>
+        <View style={[styles.infoRow, styles.infoRowLast]}>
+          <View style={styles.infoLabel}><Text>Área / Cargo Asignado</Text></View>
           <View style={styles.infoValue}><Text>{cargo}</Text></View>
         </View>
       </View>
 
       {/* Products Table */}
-      <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5 }}>DETALLE DE DOTACIÓN ENTREGADA</Text>
+      <Text style={styles.sectionTitle}>Relación de Elementos Entregados</Text>
       <View style={styles.productsTable}>
         <View style={styles.productsHeader}>
-          <View style={[styles.colFoto, { borderRight: '1pt solid black' }]}><Text style={styles.headerCell}>FOTO</Text></View>
-          <View style={[styles.colArticulo, { borderRight: '1pt solid black' }]}><Text style={styles.headerCell}>ARTÍCULO / DESCRIPCIÓN</Text></View>
-          <View style={[styles.colTalla, { borderRight: '1pt solid black' }]}><Text style={styles.headerCell}>TALLA</Text></View>
-          <View style={styles.colCantidad}><Text style={styles.headerCell}>CANT.</Text></View>
+          <View style={[styles.colFoto, { borderRightColor: '#334155' }]}><Text style={styles.headerCell}>Img</Text></View>
+          <View style={[styles.colArticulo, { borderRightColor: '#334155' }]}><Text style={[styles.headerCell, { textAlign: 'left' }]}>Descripción del Artículo</Text></View>
+          <View style={[styles.colTalla, { borderRightColor: '#334155' }]}><Text style={styles.headerCell}>Talla</Text></View>
+          <View style={styles.colCantidad}><Text style={styles.headerCell}>Cant.</Text></View>
         </View>
 
         {articulos.map((art, index) => (
-          <View key={index} style={styles.productsRow}>
+          <View key={index} style={[styles.productsRow, index % 2 === 1 ? styles.productsRowAlt : {}]}>
             <View style={styles.colFoto}>
               {art.imagen ? (
                 <Image src={art.imagen} style={styles.productImage} />
               ) : (
-                <View style={{ width: 30, height: 30, backgroundColor: '#eee' }} />
+                <View style={{ width: 30, height: 30, backgroundColor: '#e2e8f0', borderRadius: 4 }} />
               )}
             </View>
             <View style={styles.colArticulo}>
-              <Text style={styles.productCell}>{art.descripcion}</Text>
+              <Text style={[styles.productCell, { fontFamily: 'Helvetica-Bold' }]}>{art.descripcion}</Text>
             </View>
             <View style={styles.colTalla}>
               <Text style={[styles.productCell, { textAlign: 'center' }]}>{art.talla || 'N/A'}</Text>
             </View>
             <View style={styles.colCantidad}>
-              <Text style={[styles.productCell, { textAlign: 'center' }]}>{art.cantidad}</Text>
+              <Text style={[styles.productCell, { textAlign: 'center', fontFamily: 'Helvetica-Bold' }]}>{art.cantidad}</Text>
             </View>
           </View>
         ))}
       </View>
 
-      {/* Evidence Section */}
+      {/* Evidence Section - With wrap=false so it doesn't break internally or it pushes to next page */}
       {evidencias && evidencias.length > 0 && (
-        <View style={styles.evidenceSection}>
-          <Text style={styles.evidenceTitle}>Evidencia Fotográfica de Entrega</Text>
-          <View style={styles.evidenceGrid}>
-            {evidencias.map((photo, i) => (
-              <Image key={i} src={photo} style={styles.evidencePhoto} />
-            ))}
+        <View style={styles.evidenceSection} wrap={false}>
+          <Text style={styles.sectionTitle}>Registro Fotográfico de Seguridad</Text>
+          <View style={styles.evidenceContainer}>
+            <View style={styles.evidenceGrid}>
+              {evidencias.map((photo, i) => (
+                <Image key={i} src={photo} style={styles.evidencePhoto} />
+              ))}
+            </View>
           </View>
         </View>
       )}
 
-      {/* Signature Section */}
-      <View style={styles.signatureSection}>
+      {/* Signature Section - wrap=false keeps the signatures together */}
+      <View style={styles.signatureSection} wrap={false}>
         {/* Giver Signature */}
-        <View style={{ alignItems: 'center' }}>
+        <View style={styles.signatureBlock}>
           <View style={styles.signatureBox}>
             {firmaGiverBase64 && (
               <Image src={firmaGiverBase64} style={styles.signatureImage} />
             )}
           </View>
-          <Text style={styles.signatureLabel}>Firma Quien Entrega</Text>
-          <Text style={{ fontSize: 8, marginTop: 2 }}>{nombreGiver || 'Administrador'}</Text>
+          <Text style={styles.signatureLabel}>Sello de Seguridad Institucional</Text>
+          <Text style={styles.signatureSubLabel}>Administrador: {nombreGiver || 'N/A'}</Text>
         </View>
 
         {/* Receiver Signature */}
-        <View style={{ alignItems: 'center' }}>
+        <View style={styles.signatureBlock}>
           <View style={styles.signatureBox}>
             {firmaBase64 && (
               <Image src={firmaBase64} style={styles.signatureImage} />
             )}
           </View>
-          <Text style={styles.signatureLabel}>Firma Quien Recibe</Text>
-          <Text style={{ fontSize: 8, marginTop: 2 }}>{nombre}</Text>
-          <Text style={{ fontSize: 8 }}>{identificacion}</Text>
+          <Text style={styles.signatureLabel}>Firma de Aceptación y Recibo</Text>
+          <Text style={styles.signatureSubLabel}>{nombre}</Text>
+          <Text style={styles.signatureSubLabel}>C.C. {identificacion}</Text>
         </View>
       </View>
 
-      <Text style={styles.footer}>
-        Este documento certifica la entrega de los elementos descritos anteriormente.
-        El trabajador se compromete a darles un uso adecuado y reportar cualquier novedad.
+      {/* Footer */}
+      <Text style={styles.footer} fixed>
+        Este documento certifica legalmente la entrega de los elementos descritos. El trabajador declara haberlos recibido en buen estado y asume la responsabilidad de utilizarlos adecuadamente durante el desarrollo de sus funciones, conforme a la política de seguridad y salud en el trabajo.
       </Text>
     </Page>
   </Document>

@@ -1,5 +1,5 @@
 export type UserRole = 'ADMINISTRADOR' | 'OPERADOR' | 'AUDITOR';
-export type ModuleId = 'resumen' | 'inventario' | 'entregas' | 'qr' | 'reportes' | 'auditoria' | 'usuarios';
+export type ModuleId = 'resumen' | 'inventario' | 'entregas' | 'qr' | 'reportes' | 'auditoria' | 'usuarios' | 'solicitudes-stock';
 
 export interface AuthResponse {
   id: string;
@@ -206,6 +206,8 @@ export interface Receptor {
 export interface EntregaItem {
   productoId: string;
   cantidad: number;
+  nombre?: string;
+  talla?: string;
 }
 
 export interface Entrega {

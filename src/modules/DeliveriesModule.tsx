@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Truck, 
@@ -23,6 +23,7 @@ import { Product, AuthResponse } from '../types';
 import * as api from '../services/api';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ActaReportPDF } from '../components/ActaReportPDF';
+import { generateAndPersistActaPDF } from '../services/pdfGeneratorService';
 import type { ToastType } from '../components/BottomToast';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -46,6 +47,31 @@ interface DeliveriesModuleProps {
   onLogout?: () => void;
 }
 
+const debugDeliveryPayload = (payload: any) => {
+  console.groupCollapsed('🔍 [DEBUG] Validating Delivery Payload');
+  try {
+    console.table(payload.items.map((i: any) => ({
+      ...i, 
+      productIdType: typeof i.productId, 
+      isValidId: typeof i.productId === 'string' && i.productId !== 'NaN' && i.productId.length > 5
+    })));
+  } catch(e){}
+  console.log('Signature URL Type:', typeof payload.signatureDataUrl, 'Length:', payload.signatureDataUrl?.length);
+  console.log('Giver Signature Type:', typeof payload.giverSignatureDataUrl, 'Length:', payload.giverSignatureDataUrl?.length);
+  if (!payload.signatureDataUrl || payload.signatureDataUrl === 'NaN') {
+    console.error('❌ signatureDataUrl is INVALID!');
+  }
+  if (!payload.giverSignatureDataUrl || payload.giverSignatureDataUrl === 'NaN') {
+    console.error('❌ giverSignatureDataUrl is INVALID!');
+  }
+  payload.items.forEach((item: any, idx: number) => {
+    if (!item.productId || typeof item.productId !== 'string' || item.productId === 'NaN') {
+       console.error(`❌ Item [${idx}] productId is INVALID:`, item.productId);
+    }
+  });
+  console.groupEnd();
+};
+
 export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   products,
   onNotify,
@@ -54,6 +80,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   session,
   onLogout
 }) => {
+  const [activeProducts, setActiveProducts] = useState<Product[]>(products);
+  
+  useEffect(() => {
+    setActiveProducts(products);
+  }, [products]);
+
   const [step, setStep] = useState(1);
   const [searchId, setSearchId] = useState('');
   const [employeeProfile, setEmployeeProfile] = useState<api.EmployeeProfile | null>(null);
@@ -64,6 +96,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   const [generatedActa, setGeneratedActa] = useState<any>(null);
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean; empId: number | null}>({isOpen: false, empId: null});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pendingDelivery, setPendingDelivery] = useState<any>(null);
   const [isLoadingPending, setIsLoadingPending] = useState(false);
   const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
@@ -92,6 +125,8 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   }, [onLogout]);
 
   React.useEffect(() => {
+    if (step !== 1) return;
+
     const fetchPending = async () => {
       const currentSession = sessionRef.current;
       if (!currentSession) return;
@@ -107,7 +142,17 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     fetchPending();
     const intervalId = window.setInterval(fetchPending, 3000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [step]);
+
+  React.useEffect(() => {
+    if (showSuccessModal) {
+       window.scrollTo({ top: 0, behavior: 'smooth' });
+       const timer = setTimeout(() => setShowPdfViewer(true), 600);
+       return () => clearTimeout(timer);
+    } else {
+       setShowPdfViewer(false);
+    }
+  }, [showSuccessModal]);
 
   React.useEffect(() => {
     let intervalId: any;
@@ -149,14 +194,36 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
       if (pending?.detalles?.length) {
         setPendingDelivery(pending);
         const newCart: Record<string, { quantity: number; talla: string }> = {};
+        const missingProducts: Product[] = [];
         pending.detalles.forEach((item: any) => {
           const productId = String(item.productoId);
           newCart[productId] = {
             quantity: item.cantidad,
             talla: item.talla || 'M'
           };
+          if (!activeProducts.some(p => String(p.id) === productId) && item.producto) {
+             missingProducts.push({
+                id: String(item.producto.id),
+                sku: item.producto.sku || 'N/A',
+                name: item.producto.nombre || `Ítem #${productId}`,
+                type: item.producto.tipo || 'EPP',
+                color: item.producto.color || '',
+                talla: item.producto.talla || item.talla || 'M',
+                stock: item.producto.stockActual || 0,
+                stockMinimo: item.producto.stockMinimo || 0,
+                stockMaximo: item.producto.stockMaximo || 100,
+                active: true,
+                category: { id: '0', name: item.producto.categoria || 'General' },
+                sizeStocks: Array.isArray(item.producto.tallas) && item.producto.tallas.length > 0
+                  ? item.producto.tallas
+                  : [{ talla: item.talla || 'M', stock: item.producto.stockActual || 100 }],
+             } as Product);
+          }
         });
         setCart(newCart);
+        if (missingProducts.length > 0) {
+           setActiveProducts(prev => [...prev, ...missingProducts]);
+        }
       } else {
         setPendingDelivery(null);
         setCart({});
@@ -254,7 +321,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
 
   const updateCartItemQuantity = async (productId: string, quantity: number, talla?: string) => {
     const currentItem = cart[productId];
-    const currentTalla = talla || currentItem?.talla || products.find(p => String(p.id) === productId)?.sizeStocks?.[0]?.talla || 'M';
+    const currentTalla = talla || currentItem?.talla || activeProducts.find(p => String(p.id) === productId)?.sizeStocks?.[0]?.talla || 'M';
     
     const newCart = { 
       ...cart, 
@@ -289,7 +356,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     await handleSelectCollaborator(searchId.trim());
   };
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = activeProducts.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
                           p.sku.toLowerCase().includes(productSearch.toLowerCase());
     
@@ -297,6 +364,11 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                             (p.category?.name && p.category.name.toUpperCase() === productCategory.toUpperCase());
     
     return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    // Show items from cart at the top to ensure the pre-assigned dotation is clearly visible
+    const aInCart = cart[String(a.id)]?.quantity > 0 ? 1 : 0;
+    const bInCart = cart[String(b.id)]?.quantity > 0 ? 1 : 0;
+    return bInCart - aInCart;
   });
 
   const selectedProducts = Object.entries(cart)
@@ -311,7 +383,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
     return Object.entries(cart)
       .filter(([, item]) => item.quantity > 0)
       .map(([id, item]) => {
-        const product = products.find(p => String(p.id) === id);
+        const product = activeProducts.find(p => String(p.id) === id);
         return {
           productId: id,
           name: product ? product.name : `Ítem #${id}`,
@@ -871,7 +943,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
 
                         {/* Categorías (Filtros rápidos) */}
                         <div className="flex flex-wrap gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                           {["ALL", ...Array.from(new Set(products.map(p => p.category?.name).filter(Boolean)))].map(cat => {
+                           {["ALL", ...Array.from(new Set(activeProducts.map(p => p.category?.name).filter(Boolean)))].map(cat => {
                               const isSelected = productCategory === cat;
                               return (
                                  <button
@@ -1210,10 +1282,31 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                      <button onClick={() => setStep(2)} className="flex-1 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-600 dark:text-white">Atrás</button>
                      <button
                        onClick={async () => {
-                         if (!signatureDataUrl || !giverSignature) return;
+                         let finalGiverSignature = giverSignature;
+                         if (!finalGiverSignature && session) {
+                           finalGiverSignature = generateCorporateGiverSignature(session.fullName || session.username, session.role || 'ADMINISTRADOR');
+                           setGiverSignature(finalGiverSignature);
+                         }
+
+                         if (!signatureDataUrl || signatureDataUrl === 'NaN') {
+                            onNotify?.("error", "La firma del receptor no es válida o está vacía.");
+                            return;
+                         }
+                         if (!finalGiverSignature || finalGiverSignature === 'NaN') {
+                            onNotify?.("error", "La firma del administrador no es válida o está vacía.");
+                            return;
+                         }
+                         const invalidItems = selectedProducts.filter(p => !p.productId || p.productId === 'NaN' || typeof p.productId !== 'string');
+                         if (invalidItems.length > 0) {
+                            console.error('❌ Invalid items in payload:', invalidItems);
+                            onNotify?.("error", "Error interno: Hay productos con IDs inválidos. Revisa la consola.");
+                            return;
+                         }
+
                          try {
                             const finalEvidencePhotos = receiverSelfie ? [receiverSelfie, ...evidencePhotos] : evidencePhotos;
-                            const response = await onSubmitDelivery({
+                            
+                            const payload = {
                               employeeFullName: employeeProfile?.fullName || "",
                               employeeDocument: employeeProfile?.document || "",
                               employeeEmail: employeeProfile?.email || "",
@@ -1221,37 +1314,42 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                               items: selectedProducts,
                               notes,
                               signatureDataUrl,
-                              giverSignatureDataUrl: giverSignature,
+                              giverSignatureDataUrl: finalGiverSignature,
                               giverFullName: session?.fullName || "Administrador Central",
                               evidencePhotos: finalEvidencePhotos
-                            });
+                            };
+                            
+                            debugDeliveryPayload(payload);
+                            
+                            const response = await onSubmitDelivery(payload);
                            
-                           if (currentSession) {
-                              await api.updateSessionEvidence(currentSession.id.toString(), {
+                           if (currentSession?.id) {
+                              const sessionIdStr = currentSession.id?.toString() || '';
+                              await api.updateSessionEvidence(sessionIdStr, {
                                 itemsJson: JSON.stringify(selectedProducts),
                                 photosJson: JSON.stringify(finalEvidencePhotos),
-                                giverSignature: giverSignature,
+                                giverSignature: finalGiverSignature,
                                 giverFullName: session?.fullName || "Administrador Central"
                               });
-                              await api.employeeSignSession(currentSession.id.toString(), signatureDataUrl);
+                              await api.employeeSignSession(sessionIdStr, signatureDataUrl);
                            }
                            
                            const actaData = {
                              nombre: employeeProfile?.fullName || "N/A",
-                             identificacion: employeeProfile?.document || "N/A",
+                             identificacion: employeeProfile?.document?.toString() || "N/A",
                              cargo: employeeProfile?.cargo || "N/A",
-                             nroActa: response.actaNumber || "S/N",
+                             nroActa: response?.actaNumber?.toString() || "S/N",
                              articulos: selectedProducts.map(sp => {
-                              const p = products.find(prod => String(prod.id) === sp.productId);
+                                const p = products.find(prod => String(prod.id) === String(sp.productId));
                                 return {
                                    descripcion: p?.name || "N/A",
                                    talla: sp.talla || "N/A",
-                                   cantidad: sp.quantity,
+                                   cantidad: sp.quantity || 0,
                                    imagen: ""
                                 };
                              }),
                              firmaBase64: signatureDataUrl,
-                             firmaGiverBase64: giverSignature,
+                             firmaGiverBase64: finalGiverSignature,
                              nombreGiver: session?.fullName || "Administrador Central",
                              evidencias: finalEvidencePhotos
                            };
@@ -1259,11 +1357,27 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                            setGeneratedActa(actaData);
                            setShowSuccessModal(true);
                            
-                         } catch (e) {
-                           onNotify?.("error", "Error al finalizar la entrega.");
+                           // Run PDF generation and upload in background
+                           generateAndPersistActaPDF(
+                             actaData,
+                             currentSession?.id?.toString() || '',
+                             employeeProfile?.document?.toString() || '',
+                             response?.actaNumber?.toString() || 'S-N'
+                           ).then((result) => {
+                             if (result.success) {
+                               console.log('PDF subido exitosamente:', result.url);
+                               // You could potentially add a toast notification here
+                             } else {
+                               console.error('Error subiendo PDF:', result.message);
+                             }
+                           });
+                           
+                         } catch (e: any) {
+                           console.error("❌ Exception during submitDelivery:", e);
+                           onNotify?.("error", e.message || "Error al finalizar la entrega.");
                          }
                        }}
-                       disabled={isLoading || !signatureDataUrl || evidencePhotos.length === 0 || !giverSignature}
+                       disabled={isLoading || !signatureDataUrl || evidencePhotos.length === 0}
                        className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 disabled:opacity-50"
                      >
                        {isLoading ? <RefreshCw className="animate-spin mx-auto" /> : <><ShieldCheck size={18} className="inline mr-2" /> Finalizar & Generar Acta</>}
@@ -1362,10 +1476,17 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                       </p>
                       <span className="text-[9px] font-bold text-slate-400">PDF Institucional</span>
                    </div>
-                   <div className="flex-1 rounded-2xl overflow-hidden border border-slate-300 dark:border-white/5 bg-white shadow-inner">
-                      <PDFViewer width="100%" height="100%" style={{ border: 'none' }} showToolbar={false}>
-                        <ActaReportPDF {...generatedActa} />
-                      </PDFViewer>
+                   <div className="flex-1 rounded-2xl overflow-hidden border border-slate-300 dark:border-white/5 bg-slate-100 dark:bg-slate-900/50 shadow-inner flex items-center justify-center">
+                      {showPdfViewer ? (
+                        <PDFViewer width="100%" height="100%" style={{ border: 'none', backgroundColor: 'transparent' }} showToolbar={false}>
+                          <ActaReportPDF {...generatedActa} />
+                        </PDFViewer>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 animate-pulse">
+                           <RefreshCw className="w-8 h-8 animate-spin mb-4" />
+                           <span className="text-[10px] font-black uppercase tracking-widest">Generando Documento...</span>
+                        </div>
+                      )}
                    </div>
                 </div>
               </div>

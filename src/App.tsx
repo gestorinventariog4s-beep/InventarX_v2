@@ -8,6 +8,7 @@ import { QrReceptionPortal } from './modules/QrReceptionPortal';
 import { AuditModule } from './modules/AuditModule';
 import { UsersModule } from './modules/UsersModule';
 import { LoginModule } from './modules/LoginModule';
+import { StockRequestsModule } from './modules/StockRequestsModule';
 import { ProfilePanel } from './components/ProfilePanel';
 import { TeamDirectory } from './components/TeamDirectory';
 import { BottomToast, type ToastState, type ToastType } from './components/BottomToast';
@@ -616,17 +617,16 @@ function App() {
       />
 
       <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-24 max-lg:pt-20 pb-10">
-        {activeModule === 'resumen' && (
-          <DashboardModule 
-            products={inventoryProducts} 
-            alerts={inventoryAlerts} 
-            returns={[]} 
-            users={users} 
-            demand={dashboardDemand()} 
-            realTimeData={dashboardRealTime()}
-            isDarkMode={isDarkMode}
-          />
-        )}
+          {activeModule === 'resumen' && (
+            <DashboardModule 
+              products={inventoryProducts} 
+              alerts={inventoryAlerts} 
+              returns={[]} 
+              users={users} 
+              movements={movements}
+              isDarkMode={isDarkMode}
+            />
+          )}
         
         {activeModule === 'inventario' && (
           <InventoryModule 
@@ -704,6 +704,10 @@ function App() {
             onDeleteUser={handleDeleteUser}
             isLoading={isLoading || session.role !== 'ADMINISTRADOR'} 
           />
+        )}
+
+        {activeModule === 'solicitudes-stock' && (
+          <StockRequestsModule session={session} onLogout={handleLogout} isDarkMode={isDarkMode} />
         )}
       </main>
 

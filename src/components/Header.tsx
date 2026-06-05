@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, Moon } from 'lucide-react';
+import { Package, LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, Moon, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ModuleId, AuthResponse, UserProfile } from '../types';
 
@@ -30,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'resumen' as ModuleId, label: 'Panel', icon: Activity },
     { id: 'inventario' as ModuleId, label: 'Inventario', icon: Box },
     { id: 'entregas' as ModuleId, label: 'Despacho', icon: Truck },
+    { id: 'solicitudes-stock' as ModuleId, label: 'Stock IA', icon: AlertTriangle },
     { id: 'qr' as ModuleId, label: 'Mi QR', icon: QrCode },
     { id: 'auditoria' as ModuleId, label: 'Auditoría', icon: BarChart3 },
     { id: 'usuarios' as ModuleId, label: 'Talento', icon: Users },
@@ -41,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className={`w-full max-w-[1700px] flex justify-between items-center border rounded-[3rem] p-4 px-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] transition-all duration-700 backdrop-blur-3xl ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/70 border-white/40'}`}>
   
           {/* Branding Area */}
-          <div className="flex items-center gap-3 lg:gap-5 min-w-[150px] lg:min-w-[200px]">
+          <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0">
             <motion.div
               whileHover={{ rotate: -10, scale: 1.1, filter: 'brightness(1.2)' }}
               className="bg-gradient-to-br from-blue-500 to-blue-700 w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-500/40 cursor-pointer"
@@ -56,12 +57,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
   
           {/* Dynamic Navigation Pill (DESKTOP) */}
-          <nav className={`hidden lg:flex relative p-1.5 rounded-[2.5rem] border transition-all ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-100/40 border-slate-200/50'}`}>
+          <nav className={`hidden xl:flex relative p-1.5 rounded-[2.5rem] border transition-all ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-100/40 border-slate-200/50'}`}>
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveModule(item.id)}
-                className="relative flex items-center gap-2.5 px-6 py-3.5 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group overflow-hidden"
+                className="relative flex items-center gap-2 px-3 xl:px-4 py-2.5 rounded-[2rem] text-[9px] xl:text-[10px] font-black uppercase tracking-widest transition-all duration-500 group overflow-hidden whitespace-nowrap"
               >
                 {activeModule === item.id && (
                   <motion.div
@@ -79,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
   
           {/* User & Utils Area */}
-          <div className="flex items-center gap-4 min-w-[200px] justify-end">
+          <div className="flex items-center gap-3 lg:gap-4 flex-shrink-0 justify-end">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -138,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
       </header>
 
       {/* Dynamic Navigation Pill (MOBILE - BOTTOM BAR) */}
-      <nav className={`flex lg:hidden fixed bottom-0 left-0 w-full justify-around px-2 pb-8 pt-3 z-[100] rounded-t-[2rem] border-t ${isDarkMode ? 'bg-slate-950/90 backdrop-blur-xl border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]' : 'bg-white/95 backdrop-blur-xl border-slate-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+      <nav className={`flex xl:hidden fixed bottom-0 left-0 w-full justify-around px-2 pb-8 pt-3 z-[100] rounded-t-[2rem] border-t ${isDarkMode ? 'bg-slate-950/90 backdrop-blur-xl border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]' : 'bg-white/95 backdrop-blur-xl border-slate-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
         {navItems.map((item) => (
           <button
             key={`mob-${item.id}`}

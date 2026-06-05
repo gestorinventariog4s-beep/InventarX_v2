@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchInventoryMovements } from '../services/inventoryMovements';
 import { fetchEntregas } from '../services/api';
+import { downloadLocalActaPDF } from '../services/pdfGeneratorService';
 import type { InventoryMovement, Entrega } from '../types';
 import { 
   ShieldCheck, 
@@ -9,7 +10,8 @@ import {
   Terminal, 
   Database,
   Lock,
-  Search
+  Search,
+  Eye
 } from 'lucide-react';
 import type { AuditLog } from '../types';
 
@@ -211,21 +213,46 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
                       <div className="flex flex-wrap gap-2">
                         {entrega.inventarioItems.map((item, idx) => (
                           <span key={idx} className="bg-slate-100 dark:bg-white/10 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5">
-                            {item.cantidad}x PROD-{item.productoId}
+                            {item.cantidad}x {item.nombre ? item.nombre : `PROD-${item.productoId.substring(0,6)}`} {item.talla ? `(Talla: ${item.talla})` : ''}
                           </span>
                         ))}
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      {(entrega.urlActaPdf || entrega.urlEvidencia) ? (
+                      {entrega.urlActaPdf ? (
                         <a 
-                          href={entrega.urlActaPdf || entrega.urlEvidencia}
+                          href={entrega.urlActaPdf}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex bg-emerald-100/50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-200/50 dark:hover:bg-emerald-500/20 transition-all border border-emerald-200/50 dark:border-emerald-500/20 hover:scale-105 active:scale-95"
                         >
                           Ver Acta
                         </a>
+                      ) : entrega.urlEvidencia ? (
+                         <button 
+                          onClick={async () => {
+                            const btn = document.getElementById(`btn-acta-${entrega.id}`);
+                            if (btn) btn.innerText = 'GENERANDO...';
+                            await downloadLocalActaPDF({
+                              nombre: entrega.receptor?.nombreCompleto || 'Desconocido',
+                              identificacion: entrega.receptor?.documentoIdentidad || 'N/A',
+                              cargo: 'N/A',
+                              articulos: entrega.inventarioItems.map(item => ({
+                                imagen: 'https://placehold.co/400x400/png',
+                                descripcion: item.nombre || `PROD-${item.productoId.substring(0, 8)}`,
+                                talla: item.talla || 'N/A',
+                                cantidad: item.cantidad
+                              })),
+                              firmaBase64: entrega.urlEvidencia || '',
+                              nroActa: entrega.idUnicoRastreo || 'N/A'
+                            }, `Acta_Entrega_${entrega.idUnicoRastreo}.pdf`);
+                            if (btn) btn.innerText = 'DESCARGAR EVIDENCIA';
+                          }}
+                          id={`btn-acta-${entrega.id}`}
+                          className="inline-flex bg-blue-100/50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-200/50 dark:hover:bg-blue-500/20 transition-all border border-blue-200/50 dark:border-blue-500/20 hover:scale-105 active:scale-95"
+                        >
+                          Descargar Evidencia
+                        </button>
                       ) : (
                         <span className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">Sin Acta</span>
                       )}
@@ -266,18 +293,27 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
                 auditLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-white/60 dark:hover:bg-white/5 transition-colors group text-[11px]">
                     <td className="px-8 py-6">
-                      <p className="font-bold text-slate-600 dark:text-slate-300 tracking-wider uppercase text-[10px]">{new Date(log.createdAt).toLocaleString()}</p>
+                      <p className="font-bold text-slate-600 dark:text-slate-300 tracking-wider uppercase text-[10px]">{new Date((log as any).creadoEn || log.createdAt).toLocaleString()}</p>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-3">
                         <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full border border-slate-200 dark:border-white/5">
                           <User size={12} className="text-slate-500 dark:text-slate-400" />
                         </div>
-                        <span className="font-black text-blue-950 dark:text-slate-200">{log.actorUsername}</span>
+                        <span className="font-black text-blue-950 dark:text-slate-200">{(log as any).usuario?.perfil?.nombreCompleto || (log as any).usuario?.correo || log.actorUsername || 'Sistema'}</span>
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span className="font-black text-blue-900 dark:text-white tracking-tight text-sm bg-blue-50 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-white/10">{log.action}</span>
+                      <span className="font-black text-blue-900 dark:text-white tracking-tight text-sm bg-blue-50 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-white/10">
+                        {(() => {
+                          const action = (log as any).accion || log.action;
+                          if (action === 'HTTP_PATCH') return 'ACTUALIZACIÓN';
+                          if (action === 'HTTP_POST') return 'CREACIÓN';
+                          if (action === 'HTTP_DELETE') return 'ELIMINACIÓN';
+                          if (action === 'HTTP_GET') return 'LECTURA';
+                          return action;
+                        })()}
+                      </span>
                     </td>
                     <td className="px-8 py-6 text-right">
                       <code className="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/5">#{log.id}</code>
@@ -306,24 +342,47 @@ export const AuditModule: React.FC<AuditModuleProps> = ({
                 <th className="px-6 py-4 text-[10px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-[0.2em] border-b border-blue-100/50 dark:border-white/5">Tipo</th>
                 <th className="px-6 py-4 text-[10px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-[0.2em] border-b border-blue-100/50 dark:border-white/5">Responsable</th>
                 <th className="px-6 py-4 text-[10px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-[0.2em] border-b border-blue-100/50 dark:border-white/5">Motivo</th>
+                <th className="px-6 py-4 text-[10px] font-black text-blue-400 dark:text-slate-500 uppercase tracking-[0.2em] border-b border-blue-100/50 dark:border-white/5 text-right">Soporte</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-blue-50/50 dark:divide-white/5">
               {movements.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">No hay movimientos registrados.</td></tr>
+                <tr>
+                  <td colSpan={7} className="text-center py-16">
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <div className="bg-amber-100 dark:bg-amber-500/10 p-4 rounded-full border border-amber-200 dark:border-amber-500/20">
+                        <Database size={32} className="text-amber-500 dark:text-amber-400" />
+                      </div>
+                      <p className="text-slate-500 dark:text-slate-400 text-[11px] font-black uppercase tracking-[0.2em]">No se han detectado movimientos</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold max-w-md">El sistema de gestión de auditoría no reporta inventario activo en los registros para los parámetros actuales. Mantenga la permanencia de los archivos usando el modo ocultar en los productos en lugar de eliminarlos.</p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 movements.map(mov => (
                   <tr key={mov.id} className="hover:bg-white/60 dark:hover:bg-white/5 transition-colors text-[11px] font-black text-blue-950 dark:text-slate-200">
-                    <td className="px-6 py-5 whitespace-nowrap text-slate-500 dark:text-slate-400 tracking-wider font-bold uppercase">{new Date(mov.createdAt).toLocaleString()}</td>
-                    <td className="px-6 py-5 text-sm tracking-tight">{mov.product?.name || '-'}</td>
-                    <td className="px-6 py-5 text-sm">{mov.quantity} <span className="text-[9px] text-blue-400 uppercase tracking-widest ml-1">UN</span></td>
+                    <td className="px-6 py-5 whitespace-nowrap text-slate-500 dark:text-slate-400 tracking-wider font-bold uppercase">{new Date((mov as any).creadoEn || mov.createdAt).toLocaleString()}</td>
+                    <td className="px-6 py-5 text-sm tracking-tight">{(mov as any).producto?.nombre || mov.product?.name || '-'}</td>
+                    <td className="px-6 py-5 text-sm">{(mov as any).cantidad || mov.quantity} <span className="text-[9px] text-blue-400 uppercase tracking-widest ml-1">UN</span></td>
                     <td className="px-6 py-5">
-                       <span className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-[0.15em] border ${mov.movementType === 'INBOUND' || mov.movementType === 'ENTRADA' ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 border-rose-200/50 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400'}`}>
-                         {mov.movementType}
+                       <span className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-[0.15em] border ${(mov as any).tipo === 'ENTRADA' || mov.movementType === 'INBOUND' || mov.movementType === 'ENTRADA' ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 border-rose-200/50 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400'}`}>
+                         {(mov as any).tipo || mov.movementType}
                        </span>
                     </td>
-                    <td className="px-6 py-5">{mov.createdBy}</td>
-                    <td className="px-6 py-5 opacity-70 font-medium">{mov.reason}</td>
+                    <td className="px-6 py-5">{(mov as any).creadoPor || mov.createdBy}</td>
+                    <td className="px-6 py-5 opacity-70 font-medium">{(mov as any).motivo || mov.reason}</td>
+                    <td className="px-6 py-5 text-right">
+                      {(mov as any).documentoUrl ? (
+                        <button
+                          onClick={() => window.open((mov as any).documentoUrl, '_blank')}
+                          className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-white/5 dark:hover:bg-white/10 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-blue-200 dark:border-white/10"
+                        >
+                          <Eye size={12} /> Ver Acta
+                        </button>
+                      ) : (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sin soporte</span>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}

@@ -170,14 +170,17 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
   if (!session) throw new Error('Sesión no disponible.');
 
   const method = options?.method || 'GET';
+  const isFormDataBody = options?.body instanceof FormData;
   console.log(`[FETCH-AUTH] ${method} ${API_BASE}${path}`);
-  if (options?.body) {
+  if (options?.body && !isFormDataBody) {
     console.log(`[FETCH-AUTH-BODY]`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+  } else if (isFormDataBody) {
+    console.log('[FETCH-AUTH-BODY] FormData payload');
   }
 
   const headers = new Headers(options?.headers);
   headers.set('Authorization', `Bearer ${session.token}`);
-  if (!headers.has('Content-Type') && options?.body) {
+  if (!headers.has('Content-Type') && options?.body && !isFormDataBody) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -206,8 +209,10 @@ export const authFetch = async <T>(path: string, session: AuthResponse | null, o
       console.error(`[FETCH-AUTH-ERROR-DETAILS] URL: ${API_BASE}${path}`);
       console.error(`[FETCH-AUTH-ERROR-DETAILS] Method: ${method}`);
       console.error(`[FETCH-AUTH-ERROR-DETAILS] Response Body:`, payload || responseText);
-      if (options?.body) {
+      if (options?.body && !isFormDataBody) {
         console.error(`[FETCH-AUTH-ERROR-DETAILS] Sent Payload:`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+      } else if (isFormDataBody) {
+        console.error('[FETCH-AUTH-ERROR-DETAILS] Sent Payload: FormData');
       }
       
       throw new Error(parseApiError(payload, `Error ${response.status}: ${response.statusText}`));
@@ -293,13 +298,16 @@ export const verifyLoginChallenge = async (email: string, credential: any): Prom
 
 export const publicFetch = async <T>(path: string, options?: globalThis.RequestInit): Promise<T> => {
   const method = options?.method || 'GET';
+  const isFormDataBody = options?.body instanceof FormData;
   console.log(`[FETCH] ${method} ${API_BASE}${path}`);
-  if (options?.body) {
+  if (options?.body && !isFormDataBody) {
     console.log(`[FETCH-BODY]`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+  } else if (isFormDataBody) {
+    console.log('[FETCH-BODY] FormData payload');
   }
   
   const headers = new Headers(options?.headers);
-  if (!headers.has('Content-Type') && options?.body) {
+  if (!headers.has('Content-Type') && options?.body && !isFormDataBody) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -323,8 +331,10 @@ export const publicFetch = async <T>(path: string, options?: globalThis.RequestI
       console.error(`[FETCH-ERROR-DETAILS] URL: ${API_BASE}${path}`);
       console.error(`[FETCH-ERROR-DETAILS] Method: ${method}`);
       console.error(`[FETCH-ERROR-DETAILS] Response Body:`, payload || responseText);
-      if (options?.body) {
+      if (options?.body && !isFormDataBody) {
         console.error(`[FETCH-ERROR-DETAILS] Sent Payload:`, JSON.parse(typeof options.body === 'string' ? options.body : JSON.stringify(options.body)));
+      } else if (isFormDataBody) {
+        console.error('[FETCH-ERROR-DETAILS] Sent Payload: FormData');
       }
       
       throw new Error(parseApiError(payload, `Error ${response.status}: ${response.statusText}`));
@@ -801,4 +811,40 @@ export const fetchEntregas = (search?: string) => {
   // TODO: Make sedeId configurable if needed, for now use default or empty
   const url = search ? `/api/v1/entregas?sedeId=sede-principal-01&search=${encodeURIComponent(search)}` : `/api/v1/entregas?sedeId=sede-principal-01`;
   return authFetch<{ message: string; data: import('../types').Entrega[] }>(url, session, profileLogout);
+};
+
+export const crearMovimientoManual = async (
+  payload: {
+    productoId: string;
+    cantidad: number;
+    tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'DEVOLUCION';
+    motivo: string;
+    referenciaId?: string;
+    documentoUrl?: string;
+  },
+  session: AuthResponse | null,
+  onLogout: () => void
+) => {
+  return authFetch<any>('/api/v1/inventario/movimientos', session, onLogout, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const uploadSoporteInventario = async (
+  file: File | Blob,
+  session: AuthResponse | null,
+  onLogout: () => void
+) => {
+  const formData = new FormData();
+  formData.append('file', file, 'soporte.pdf');
+  
+  return authFetch<{ url: string; message: string }>('/api/v1/inventario/movimientos/upload-soporte', session, onLogout, {
+    method: 'POST',
+    body: formData
+  });
+};
+
+export const fetchDashboardStats = async (session: AuthResponse | null, onLogout: () => void) => {
+  return authFetch<any>('/api/v1/inventario/dashboard-stats', session, onLogout);
 };
