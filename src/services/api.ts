@@ -655,16 +655,20 @@ export const crearSolicitudDotacion = (payload: {
     body: JSON.stringify(payload),
   });
 
-export const generarTokenQR = (sedeId: string = 'sede-principal-01', session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<{ id: string; codigo: string; mesValidacion: string }>('/api/v1/dotacion/qr/generar', session, onLogout, {
+export const generarTokenQR = (sedeId: string = 'sede-principal-01') => {
+  const session = readSession();
+  return authFetch<{ id: string; codigo: string; mesValidacion: string }>('/api/v1/dotacion/qr/generar', session, profileLogout, {
     method: 'POST',
     body: JSON.stringify({ sedeId }),
   });
+};
 
-export const cancelarSolicitudDotacion = (id: string, session: AuthResponse | null, onLogout: () => void) =>
-  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, session, onLogout, {
+export const cancelarSolicitudDotacion = (id: string) => {
+  const session = readSession();
+  return authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, session, profileLogout, {
     method: 'PATCH',
   });
+};
 
 export const savePendingDelivery = (document: string, items: Array<{ productId: string; quantity: number; talla: string }>) => 
   publicFetch<any>(`/api/public/employees/${document}/pending`, {
