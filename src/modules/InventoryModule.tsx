@@ -5,7 +5,6 @@ import {
   ArrowUpDown,
   ChevronDown,
   Clock,
-  FileSpreadsheet,
   Filter,
   ImagePlus,
   LayoutGrid,
@@ -24,7 +23,6 @@ interface InventoryManagerProps {
   onAddProduct: (p: ProductPayload) => Promise<void>;
   onEditProduct: (id: string, p: ProductPayload) => Promise<void>;
   onDeleteProduct: (id: string, mode: 'soft' | 'hard') => Promise<void>;
-  onBulkAddProducts: (products: ProductPayload[]) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -63,7 +61,6 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
-  onBulkAddProducts,
   isLoading
 }) => {
   const [searchTerm, setSearchTerm] = useState('');

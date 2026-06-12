@@ -604,7 +604,7 @@ function App() {
             onAddProduct={handleAddInventoryProduct} 
             onEditProduct={handleEditInventoryProduct} 
             onDeleteProduct={handleDeleteInventoryProduct} 
-            onBulkAddProducts={async () => {}}
+
             isLoading={inventorySaving}
           />
         )}
