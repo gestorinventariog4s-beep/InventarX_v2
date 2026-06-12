@@ -3,6 +3,8 @@ import { Package, LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, M
 import { motion } from 'framer-motion';
 import { ModuleId, AuthResponse, UserProfile } from '../types';
 
+import { HexagonLogo } from './HexagonLogo';
+
 interface HeaderProps {
   activeModule: ModuleId;
   setActiveModule: (v: ModuleId) => void;
@@ -38,20 +40,20 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-[100] px-4 md:px-12 py-8 flex justify-center w-full">
+      <header className="sticky top-0 z-[100] px-4 md:px-12 py-4 flex justify-center w-full">
         <div className={`w-full max-w-[1700px] flex justify-between items-center border rounded-[3rem] p-4 px-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] transition-all duration-700 backdrop-blur-3xl ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/70 border-white/40'}`}>
   
           {/* Branding Area */}
-          <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0">
+          <div className="flex items-center gap-2.5 lg:gap-3 flex-shrink-0">
             <motion.div
               whileHover={{ rotate: -10, scale: 1.1, filter: 'brightness(1.2)' }}
               className="bg-gradient-to-br from-blue-500 to-blue-700 w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-500/40 cursor-pointer"
             >
-              <Package className="w-5 h-5 lg:w-6 lg:h-6" strokeWidth={2.5} />
+              <HexagonLogo className="w-6 h-6 lg:w-7 lg:h-7" strokeWidth={2.5} />
             </motion.div>
             <div>
               <h2 className={`text-xl lg:text-2xl font-black tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
-                INVETAR<span className="text-blue-600">X</span>
+                INVENTAR<span className="text-blue-600 text-[1.15em] ml-[1px]">X</span>
               </h2>
             </div>
           </div>

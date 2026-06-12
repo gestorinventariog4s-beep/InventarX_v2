@@ -7,6 +7,7 @@ import {
   User,
   ArrowRight
 } from 'lucide-react';
+import { HexagonLogo } from '../components/HexagonLogo';
 import heroImage from '../assets/hero.png';
 
 interface LoginModuleProps {
@@ -124,15 +125,15 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
           </div>
 
           <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center relative">
-            <div className="mb-8">
+            <div className="mb-8 flex flex-col items-center md:items-start text-center md:text-left">
               <motion.div
-                className="w-12 h-12 rounded-xl bg-blue-600 shadow-xl shadow-blue-600/30 flex items-center justify-center text-white mb-5"
+                className="w-14 h-14 rounded-2xl bg-blue-600 shadow-xl shadow-blue-600/30 flex items-center justify-center text-white mb-3 mx-auto md:mx-0"
                 whileHover={{ rotate: 5, scale: 1.05 }}
               >
-                <Package size={24} strokeWidth={2.5} />
+                <HexagonLogo className="w-8 h-8" strokeWidth={2.5} />
               </motion.div>
               <h1 className="text-slate-900 text-3xl font-black tracking-tighter mb-1">
-                INVETAR<span className="text-blue-600">X</span>
+                INVENTAR<span className="text-blue-600 text-[1.15em] ml-[1px]">X</span>
               </h1>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ingrese a su panel operativo</p>
             </div>

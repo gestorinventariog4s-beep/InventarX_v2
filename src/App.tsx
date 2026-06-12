@@ -585,7 +585,7 @@ function App() {
         onOpenTeam={() => setIsTeamOpen(true)}
       />
 
-      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-24 max-lg:pt-20 pb-10">
+      <main className="max-w-[1700px] mx-auto px-4 md:px-8 pt-8 max-lg:pt-6 pb-10">
           {activeModule === 'resumen' && (
             <DashboardModule 
               products={inventoryProducts} 

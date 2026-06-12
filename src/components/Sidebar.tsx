@@ -4,6 +4,7 @@ import {
   LogOut, 
   Package2
 } from 'lucide-react';
+import { HexagonLogo } from './HexagonLogo';
 import { ModuleId, UserRole } from '../types';
 
 interface SidebarProps {
@@ -28,11 +29,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="desktop-sidebar">
       <div className="sidebar-brand">
-        <div className="brand-logo">
-          <Package2 size={32} color="var(--primary)" />
+        <div className="brand-logo text-blue-600">
+          <HexagonLogo className="w-8 h-8" strokeWidth={2.5} />
         </div>
         <div className="brand-text">
-          <h1>INVETARX</h1>
+          <h1>INVENTAR<span className="text-blue-600 text-[1.15em] ml-[1px]">X</span></h1>
           <p>Gestión de Dotación</p>
         </div>
       </div>
