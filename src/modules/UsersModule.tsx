@@ -60,6 +60,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
   };
 
   return (
+    <>
     <div className="space-y-8 animate-fade pb-20">
       
       {/* Header Section - UNIFIED 8/4 BENTO STYLE */}
@@ -214,8 +215,10 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
           </table>
         </div>
       </div>
-
-      {editingUser && (
+    </div>
+    
+    {/* Modals outside animate-fade */}
+    {editingUser && (
         <div className="fixed inset-0 z-[120] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-xl rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl p-6">
             <div className="flex items-center justify-between mb-5">
@@ -248,6 +251,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

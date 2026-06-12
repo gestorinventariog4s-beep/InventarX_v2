@@ -632,7 +632,8 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade pb-10">
+    <>
+    <div className="space-y-8 animate-fade pb-20">
       
       {/* Header Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1373,8 +1374,7 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                            });
                            
                          } catch (e: any) {
-                           console.error("❌ Exception during submitDelivery:", e);
-                           onNotify?.("error", e.message || "Error al finalizar la entrega.");
+                                                onNotify?.("error", e.message || "Error al finalizar la entrega.");
                          }
                        }}
                        disabled={isLoading || !signatureDataUrl || evidencePhotos.length === 0}
@@ -1388,11 +1388,12 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
           </AnimatePresence>
         </div>
       </div>
+    </div> {/* End of animate-fade div */}
 
       {/* Success Modal with PDF Preview */}
       <AnimatePresence>
         {showSuccessModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1420,42 +1421,28 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
                     setSearchId('');
                     setEvidencePhotos([]);
                   }}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition-colors"
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                <div className="md:w-1/3 p-8 space-y-6 bg-slate-50 dark:bg-slate-800/50">
-                   <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resumen de Entrega</p>
-                      <div className="space-y-4">
-                         <div className="flex items-center gap-3">
-                            <UserCheck className="text-blue-600" size={16} />
-                            <div>
-                               <p className="text-xs font-black text-slate-900 dark:text-white">{generatedActa?.nombre}</p>
-                               <p className="text-[9px] font-bold text-slate-400">{generatedActa?.identificacion}</p>
-                            </div>
-                         </div>
-                         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Artículos</p>
-                            <div className="space-y-2">
-                               {generatedActa?.articulos.map((art: any, i: number) => (
-                                 <div key={i} className="flex justify-between text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                                    <span>{art.descripcion}</span>
-                                    <span className="text-blue-600">x{art.cantidad}</span>
-                                 </div>
-                               ))}
-                            </div>
-                         </div>
+              <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-[500px]">
+                <div className="w-full md:w-1/3 bg-slate-50 dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 p-8 flex flex-col justify-center">
+                   <div className="text-center space-y-6">
+                      <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border-4 border-white dark:border-slate-800">
+                         <FileText size={40} />
                       </div>
-                   </div>
-
-                   <div className="space-y-4">
-                      <PDFDownloadLink 
-                        document={<ActaReportPDF {...generatedActa} />} 
-                        fileName={`acta-${generatedActa?.nroActa}.pdf`}
+                      <h3 className="text-lg font-black text-slate-800 dark:text-white leading-tight">Acta Digitalizada Correctamente</h3>
+                      <p className="text-xs text-slate-500 font-medium px-4">
+                         El documento tiene validez legal e incluye firmas biométricas, evidencia fotográfica y trazabilidad IP.
+                      </p>
+                      
+                      <hr className="border-slate-200 dark:border-slate-800 my-6" />
+                      
+                      <PDFDownloadLink
+                        document={<ActaReportPDF {...generatedActa} />}
+                        fileName={`ACTA-${generatedActa?.nroActa}.pdf`}
                         className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all"
                       >
                          {({ loading }) => (
@@ -1505,6 +1492,6 @@ export const DeliveriesModule: React.FC<DeliveriesModuleProps> = ({
         onConfirm={executeRemovePendingEmployee}
         onCancel={() => setConfirmConfig({ isOpen: false, empId: null })}
       />
-    </div>
+    </>
   );
 };

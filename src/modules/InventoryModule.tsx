@@ -315,13 +315,7 @@ export const InventoryModule: React.FC<InventoryManagerProps> = ({
             >
               <Plus className="w-4 h-4 lg:w-5 lg:h-5 group-hover:rotate-90 transition-transform" strokeWidth={3} /> Nuevo Producto
             </button>
-            <button
-              onClick={() => void onBulkAddProducts([])}
-              disabled={isLoading}
-              className="bg-blue-800/30 hover:bg-blue-800/50 backdrop-blur-md text-white px-6 py-4 lg:px-10 lg:py-5 rounded-[1.5rem] lg:rounded-[1.8rem] font-black text-[9px] lg:text-[11px] uppercase tracking-widest flex items-center gap-2 lg:gap-3 transition-all active:scale-95 border border-white/10"
-            >
-              <FileSpreadsheet className="w-4 h-4 lg:w-5 lg:h-5" /> Carga Masiva
-            </button>
+
           </div>
         </div>
 

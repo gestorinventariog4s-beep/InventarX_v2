@@ -36,7 +36,11 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'qr' as ModuleId, label: 'Mi QR', icon: QrCode },
     { id: 'auditoria' as ModuleId, label: 'Auditoría', icon: BarChart3 },
     { id: 'usuarios' as ModuleId, label: 'Talento', icon: Users },
-  ].filter((item) => (item.id === 'usuarios' ? session.role === 'ADMINISTRADOR' : true));
+  ].filter((item) => {
+    if (item.id === 'usuarios') return session.role === 'ADMINISTRADOR';
+    if (item.id === 'auditoria') return session.role === 'ADMINISTRADOR' || session.role === 'AUDITOR';
+    return true;
+  });
 
   return (
     <>
