@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  LogOut, 
-  Package2
+  LogOut
 } from 'lucide-react';
 import { HexagonLogo } from './HexagonLogo';
 import { ModuleId, UserRole } from '../types';

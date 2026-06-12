@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, Moon, AlertTriangle } from 'lucide-react';
+import { LogOut, Activity, Box, Truck, QrCode, BarChart3, Users, Sun, Moon, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ModuleId, AuthResponse, UserProfile } from '../types';
 
