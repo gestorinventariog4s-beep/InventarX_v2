@@ -655,14 +655,14 @@ export const crearSolicitudDotacion = (payload: {
     body: JSON.stringify(payload),
   });
 
-export const generarTokenQR = (sedeId: string = 'sede-principal-01') =>
-  publicFetch<{ id: string; codigo: string; mesValidacion: string }>('/api/v1/dotacion/qr/generar', {
+export const generarTokenQR = (sedeId: string = 'sede-principal-01', session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<{ id: string; codigo: string; mesValidacion: string }>('/api/v1/dotacion/qr/generar', session, onLogout, {
     method: 'POST',
     body: JSON.stringify({ sedeId }),
   });
 
-export const cancelarSolicitudDotacion = (id: string) =>
-  publicFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, {
+export const cancelarSolicitudDotacion = (id: string, session: AuthResponse | null, onLogout: () => void) =>
+  authFetch<any>(`/api/v1/dotacion/solicitudes/${id}/cancelar`, session, onLogout, {
     method: 'PATCH',
   });
 

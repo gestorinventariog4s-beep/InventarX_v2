@@ -101,12 +101,12 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
       </div>
 
       <motion.div
-        className="relative z-10 w-full max-w-[1000px] px-4 md:px-10"
+        className="relative z-10 w-full max-w-[850px] px-4 md:px-6"
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8, ease: "circOut" }}
       >
-        <div className="bg-white rounded-[3.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden flex flex-col md:flex-row min-h-[620px]">
+        <div className="bg-white rounded-[3rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden flex flex-col md:flex-row min-h-[520px]">
           
           <div className="hidden md:block md:w-1/2 relative overflow-hidden group">
             <img 
@@ -123,21 +123,21 @@ export const LoginModule: React.FC<LoginModuleProps> = ({
             </div>
           </div>
 
-          <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center relative">
-            <div className="mb-10">
+          <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center relative">
+            <div className="mb-8">
               <motion.div
-                className="w-14 h-14 rounded-2xl bg-blue-600 shadow-xl shadow-blue-600/30 flex items-center justify-center text-white mb-6"
+                className="w-12 h-12 rounded-xl bg-blue-600 shadow-xl shadow-blue-600/30 flex items-center justify-center text-white mb-5"
                 whileHover={{ rotate: 5, scale: 1.05 }}
               >
-                <Package size={28} strokeWidth={2.5} />
+                <Package size={24} strokeWidth={2.5} />
               </motion.div>
-              <h1 className="text-slate-900 text-4xl font-black tracking-tighter mb-2">
+              <h1 className="text-slate-900 text-3xl font-black tracking-tighter mb-1">
                 INVETAR<span className="text-blue-600">X</span>
               </h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ingrese a su panel operativo</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ingrese a su panel operativo</p>
             </div>
 
-            <form onSubmit={handleStandardSubmit} className="space-y-5">
+            <form onSubmit={handleStandardSubmit} className="space-y-4">
               {!cachedUser ? (
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador</label>

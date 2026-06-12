@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 6000",
     "build": "tsc -p tsconfig.app.json && vite build --base ./",
     "typecheck": "tsc -p tsconfig.app.json",
     "lint": "eslint .",
